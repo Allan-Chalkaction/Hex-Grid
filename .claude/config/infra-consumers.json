@@ -1,0 +1,29 @@
+{
+  "_comment": "Registry of consumer repos that run against this claude-infra substrate (via setup.sh symlinks). /doctor checks each for distribution drift; /upgrade runs `setup.sh <path> --refresh` against each. Populate `consumers` with the repos you want tracked. `path` may use a leading ~ for $HOME. This is the source of truth for 'which repos should I keep in sync' so you never have to remember them.",
+  "_schema": {
+    "consumers": [
+      {
+        "path": "~/path/to/consumer-repo",
+        "label": "short-name"
+      }
+    ]
+  },
+  "consumers": [
+    {
+      "path": "~/Desktop/Development/projects-active/self-service-data-model",
+      "label": "self-service-data-model"
+    },
+    {
+      "path": "~/Desktop/Test2",
+      "label": "test2"
+    },
+    {
+      "path": "~/Desktop/Development/projects-active/personal-assistant",
+      "label": "personal-assistant"
+    },
+    {
+      "path": "~/Desktop/testing-infra-v2",
+      "label": "testing-infra-v2"
+    }
+  ]
+}

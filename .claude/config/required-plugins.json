@@ -1,0 +1,18 @@
+{
+  "schema": "required-plugins/1",
+  "_comment": "Plugins the v2 substrate depends on. switch-infra.sh status reports each one's enable state against ~/.claude (read-only); the operator installs/enables via Claude Code's /plugin command (Claude Code owns plugin enablement — the substrate never mutates ~/.claude/settings.json enabledPlugins directly). Pins record the marketplace + the version validated against this substrate generation.",
+  "plugins": [
+    {
+      "id": "ralph-loop",
+      "marketplace": "claude-plugins-official",
+      "marketplace_repo": "anthropics/claude-plugins-official",
+      "pinned_version": "1.0.0",
+      "enable_key": "ralph-loop@claude-plugins-official",
+      "provides": ["/ralph-loop:ralph-loop", "/ralph-loop:cancel-ralph", "/ralph-loop:help"],
+      "provides_note": "Claude Code namespaces plugin commands as <plugin>:<command>; the short /ralph-loop form also resolves.",
+      "used_by": ["/loop-task"],
+      "why": "Bounded, test-verifiable grind (get-the-suite-green, mechanical migrations, lint). The official Ralph Wiggum Stop-hook loop — adopted, not hand-built (findings-v1 §8). The /loop-task wrapper enforces a max-iterations cap because ralph-loop defaults to UNLIMITED (--max-iterations 0).",
+      "install_hint": "Run /plugin in Claude Code -> install ralph-loop from claude-plugins-official, or enable ralph-loop@claude-plugins-official in ~/.claude/settings.json enabledPlugins."
+    }
+  ]
+}

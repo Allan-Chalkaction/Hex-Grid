@@ -1,0 +1,35 @@
+{
+  "_comment": "Read-only levers/thresholds for the /doctor Step 4 optimization-eval arm (W6, ADR-110/111). The eval-arm READS this file and NEVER writes it — it detects threshold crossings over the existing telemetry ledgers and auto-logs ONE inbox ticket per finding into docs/step-1-ideas/needs-shaping/ (DEFER- prefix for deferral-class). It NEVER mutates the levers/thresholds here; tuning is hand-managed by the infra author. Keys are grouped by the roll-up seam the eval-arm reads (no second parser is authored — it reuses infra-doctor.sh --tokens over _fable-spend.jsonl and metrics-summary.sh --json over _metrics.jsonl).",
+  "schema": "doctor-eval-config/1",
+
+  "fable_spend": {
+    "_source": "infra-doctor.sh --tokens roll-up over docs/step-3-specs/_fable-spend.jsonl",
+    "weekly_spend_ceiling_tokens": 750000,
+    "per_dispatch_in_tokens_max": 90000,
+    "per_dispatch_out_tokens_max": 4000,
+    "over_envelope_count_ceiling": 0,
+    "_notes": "per_dispatch_in/out match the ADR-088 D4 over_envelope envelope (in>90k OR out>4k). over_envelope_count_ceiling 0 means: any flagged over_envelope dispatch is a finding."
+  },
+
+  "run_metrics": {
+    "_source": "metrics-summary.sh --json over docs/step-3-specs/_metrics.jsonl",
+    "duration_seconds_median_ceiling": 3600,
+    "output_tokens_median_ceiling": 50000,
+    "operator_interrupts_median_ceiling": 3,
+    "_notes": "duration_seconds is the field T11 added to measure-run.sh (null-skip preserved by the aggregator). A median over the ceiling is a mis-calibrated-threshold / regression finding."
+  },
+
+  "measurement_gaps": {
+    "_source": "metrics-summary.sh --json — the per-metric n vs runs",
+    "min_runs_for_signal": 5,
+    "max_null_fraction": 0.5,
+    "_notes": "An aggregator metric whose n is below min_runs_for_signal, or whose null fraction exceeds max_null_fraction, is a measurement-gap finding (the lever is not actually being measured)."
+  },
+
+  "unfired_levers": {
+    "_source": "presence check over both ledgers",
+    "fable_ledger_max_idle_days": 30,
+    "metrics_ledger_max_idle_days": 30,
+    "_notes": "A ledger with no new entries within max_idle_days is an unfired-lever finding (the optimization seam exists but nothing is flowing through it)."
+  }
+}

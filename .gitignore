@@ -1,0 +1,22 @@
+# Claude Code substrate
+.claude/worktrees/
+.claude/agent-memory/
+
+# Node
+node_modules/
+dist/
+build/
+*.log
+.vite/
+
+# Env / secrets
+.env
+.env.*
+!.env.example
+
+# Supabase local stack
+supabase/.branches/
+supabase/.temp/
+
+# OS
+.DS_Store

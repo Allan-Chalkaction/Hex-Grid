@@ -1,0 +1,77 @@
+
+=== 01-pipeline-happy-path ===
+EXIT: 0
+STDERR_FIRST_LINE: 
+EXPECTED_EXIT: 0
+EXPECTED_PATTERN: 
+RESULT: PASS
+
+=== 02-pipeline-no-explore ===
+EXIT: 2
+STDERR_FIRST_LINE: BLOCKED: No Explore agent has completed for this run. Step 1: spawn 1-3 Explore subagents to validate codebase assumptions before any other work.
+EXPECTED_EXIT: 2
+EXPECTED_PATTERN: No Explore agent has completed
+RESULT: PASS
+
+=== 03-pipeline-no-decomposer ===
+EXIT: 2
+STDERR_FIRST_LINE: BLOCKED: spec-decomposer has not completed. Invoke spec-decomposer to produce plan steps (includes built-in verification). The observer hook writes plan-steps.json in the run folder from the decomposer's output.
+EXPECTED_EXIT: 2
+EXPECTED_PATTERN: spec-decomposer has not completed
+RESULT: PASS
+
+=== 04-pipeline-no-active-step ===
+EXIT: 2
+STDERR_FIRST_LINE: BLOCKED: No active plan step in docs/step-5-pipeline/test4/plan-steps.json. Step 3: mark the next pending step active before invoking an implementer. Example: jq '(.steps[] | select(.step_number == 1) | .status) = "active"' docs/step-5-pipeline/test4/plan-steps.json > docs/step-5-pipeline/test4/plan-steps.json.tmp && mv docs/step-5-pipeline/test4/plan-steps.json.tmp docs/step-5-pipeline/test4/plan-steps.json
+EXPECTED_EXIT: 2
+EXPECTED_PATTERN: No active plan step
+RESULT: PASS
+
+=== 05-pipeline-cto-gate ===
+EXIT: 0
+STDERR_FIRST_LINE: 
+EXPECTED_EXIT: 0
+EXPECTED_PATTERN: 
+RESULT: PASS
+
+=== 06-nimble-decomposer-flow ===
+EXIT: 0
+STDERR_FIRST_LINE: 
+EXPECTED_EXIT: 0
+EXPECTED_PATTERN: 
+RESULT: PASS
+
+=== 07-nimble-new-flow-no-decomposer ===
+EXIT: 2
+STDERR_FIRST_LINE: BLOCKED: spec-decomposer has not completed. Invoke spec-decomposer to produce plan steps (includes built-in verification). The observer hook writes plan-steps.json in the run folder from the decomposer's output.
+EXPECTED_EXIT: 2
+EXPECTED_PATTERN: spec-decomposer has not completed
+RESULT: PASS
+
+=== 08-nimble-no-explore ===
+EXIT: 2
+STDERR_FIRST_LINE: BLOCKED: No Explore agent has completed for this run. Step 1: spawn 1-3 Explore subagents to validate codebase assumptions before any other work.
+EXPECTED_EXIT: 2
+EXPECTED_PATTERN: No Explore agent has completed
+RESULT: PASS
+
+=== 09-bypass-active ===
+EXIT: 0
+STDERR_FIRST_LINE: 
+EXPECTED_EXIT: 0
+EXPECTED_PATTERN: 
+RESULT: PASS
+
+=== 10-no-state-file ===
+EXIT: 2
+STDERR_FIRST_LINE: BLOCKED: No run state file found. The orchestrator must create a run folder and write prompt.md first — the observer hook auto-creates the state file from that. Follow the skill protocol: create run folder → write {run_dir}/prompt.md with the ticket key.
+EXPECTED_EXIT: 2
+EXPECTED_PATTERN: No run state file found
+RESULT: PASS
+
+=== 11-state-file-no-track ===
+EXIT: 0
+STDERR_FIRST_LINE: 
+EXPECTED_EXIT: 0
+EXPECTED_PATTERN: 
+RESULT: PASS

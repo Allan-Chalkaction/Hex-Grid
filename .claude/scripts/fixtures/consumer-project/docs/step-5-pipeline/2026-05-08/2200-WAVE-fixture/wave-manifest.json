@@ -1,0 +1,63 @@
+{
+  "wave_slug": "fixture",
+  "wave_run_dir": "docs/step-5-pipeline/2026-05-08/2200-WAVE-fixture",
+  "wave_branch": "feature/wave-fixture",
+  "wave_base_ref": null,
+  "ui_addendum_path": null,
+  "current_ticket": null,
+  "tickets": [
+    {
+      "key": "T-001",
+      "title": "First fixture ticket",
+      "description": "Synthetic ticket for fixture testing — independent.",
+      "ticket_run_dir": null,
+      "ticket_branch": "feature/wave-fixture--T-001",
+      "depends_on": [],
+      "planned_files": ["src/foo.ts", "tests/foo.test.ts"],
+      "gate_recommendations": ["code-reviewer"],
+      "manual_review_required": true,
+      "status": "pending",
+      "amendment_history": [],
+      "amendment_proposal": null,
+      "commit_sha": null,
+      "created_at": "2026-05-08T22:00:00Z",
+      "completed_at": null
+    },
+    {
+      "key": "T-002",
+      "title": "Second fixture ticket",
+      "description": "Synthetic ticket; depends on T-001.",
+      "ticket_run_dir": null,
+      "ticket_branch": "feature/wave-fixture--T-002",
+      "depends_on": ["T-001"],
+      "planned_files": ["src/bar.ts"],
+      "gate_recommendations": ["code-reviewer"],
+      "manual_review_required": true,
+      "status": "pending",
+      "amendment_history": [],
+      "amendment_proposal": null,
+      "commit_sha": null,
+      "created_at": "2026-05-08T22:00:00Z",
+      "completed_at": null
+    },
+    {
+      "key": "T-003",
+      "title": "Third fixture ticket (carve-out)",
+      "description": "Synthetic docs-only ticket; cosmetic carve-out per ADR-013.",
+      "ticket_run_dir": null,
+      "ticket_branch": "feature/wave-fixture--T-003",
+      "depends_on": [],
+      "planned_files": ["docs/readme.md"],
+      "gate_recommendations": [],
+      "manual_review_required": false,
+      "status": "pending",
+      "amendment_history": [],
+      "amendment_proposal": null,
+      "commit_sha": null,
+      "created_at": "2026-05-08T22:00:00Z",
+      "completed_at": null
+    }
+  ],
+  "deferrals": [],
+  "surface_log": "docs/step-5-pipeline/2026-05-08/2200-WAVE-fixture/surface-log.md"
+}

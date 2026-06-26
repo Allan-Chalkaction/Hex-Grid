@@ -1,0 +1,35 @@
+{
+  "version": 1,
+  "tracks": {
+    "roadmap": {
+      "initial_phase": "round-loop",
+      "phases": {
+        "round-loop": {
+          "next": null,
+          "instruction_file": "phases/roadmap/round-loop.md",
+          "completion_signal": null
+        },
+        "done": {
+          "next": null,
+          "instruction_file": null,
+          "completion_signal": null
+        }
+      }
+    },
+    "planner": {
+      "initial_phase": "planner-loop",
+      "phases": {
+        "planner-loop": {
+          "next": null,
+          "instruction_file": "phases/planner/planner-loop.md",
+          "completion_signal": null
+        },
+        "done": {
+          "next": null,
+          "instruction_file": null,
+          "completion_signal": null
+        }
+      }
+    }
+  }
+}

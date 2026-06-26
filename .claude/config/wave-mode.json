@@ -1,0 +1,4 @@
+{
+  "max_concurrency": 2,
+  "_comment": "Project-default wave-mode config (INFRA-007). max_concurrency is the maximum number of plan-step atoms dispatched in parallel within a single wave. Per-run override at ${run_dir}/wave-config.json takes precedence. v1 default is 2; bump to 3 is a follow-up ticket once observation supports it."
+}
