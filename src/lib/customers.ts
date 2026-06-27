@@ -68,19 +68,60 @@ export async function upsertCustomer(
     throw new Error('No active tenant — cannot create a customer.');
   }
 
+  // Non-destructive dedup (CR-001): look the customer up by (tenant_id, name)
+  // first and INSERT only on a miss. The dedup path NEVER updates an existing
+  // customer's attributes — a caller that supplies none (e.g. the CSV import)
+  // must not clobber attributes a prior add already stored.
+  const existing = await supabase
+    .from('customer')
+    .select('id')
+    .eq('tenant_id', tenantId)
+    .eq('name', name)
+    .maybeSingle();
+  if (existing.error) {
+    throw new Error(existing.error.message);
+  }
+  if (existing.data) {
+    return existing.data.id as string;
+  }
+
   const { data, error } = await supabase
     .from('customer')
-    .upsert(
-      { tenant_id: tenantId, name, attributes },
-      { onConflict: 'tenant_id,name' },
-    )
+    .insert({ tenant_id: tenantId, name, attributes })
     .select('id')
     .single();
 
   if (error || !data) {
+    // A concurrent insert may have created the row between our lookup and our
+    // insert; fall back to the now-existing row rather than failing.
+    const retry = await supabase
+      .from('customer')
+      .select('id')
+      .eq('tenant_id', tenantId)
+      .eq('name', name)
+      .maybeSingle();
+    if (retry.data) {
+      return retry.data.id as string;
+    }
     throw new Error(error?.message ?? 'Failed to upsert customer.');
   }
   return data.id as string;
+}
+
+/**
+ * WGS84 bounds check shared by the move / manual-coordinates recovery UIs and
+ * `updateSiteLocation` (CR-002 / SA-005): finite numbers with lat ∈ [-90, 90]
+ * and lng ∈ [-180, 180].
+ */
+export function isValidLatLng(lat: number, lng: number): boolean {
+  return (
+    Number.isFinite(lat) &&
+    Number.isFinite(lng) &&
+    lat >= -90 &&
+    lat <= 90 &&
+    lng >= -180 &&
+    lng <= 180
+  );
 }
 
 /**
@@ -115,6 +156,13 @@ export async function updateSiteLocation(
   siteId: string,
   point: { lat: number; lng: number } | null,
 ): Promise<void> {
+  // SA-005: validate inside the helper so it is safe regardless of caller —
+  // reject out-of-range / non-finite coords rather than building malformed EWKT.
+  if (point && !isValidLatLng(point.lat, point.lng)) {
+    throw new Error(
+      'Invalid coordinates: latitude must be -90 to 90 and longitude -180 to 180.',
+    );
+  }
   const { error } = await supabase
     .from('site')
     .update({

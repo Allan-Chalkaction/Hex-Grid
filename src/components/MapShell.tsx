@@ -61,6 +61,8 @@ export function MapShell({ sites }: { sites: SiteGeo[] }) {
       ref={containerRef}
       // The map canvas is a known a11y-difficult surface; a11y is scoped to the
       // surrounding chrome. It is not a keyboard trap (focus passes through).
+      // role="application" makes the aria-label reliably exposed (A11Y-011).
+      role="application"
       aria-label="Map of the continental United States"
       style={{ position: 'absolute', inset: 0 }}
     />

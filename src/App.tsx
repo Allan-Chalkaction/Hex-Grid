@@ -49,14 +49,17 @@ export function App() {
     <AuthGate>
       <div className="app-shell">
         <MapShell sites={sites} />
-        <aside className="site-panel">
+        {/* A11Y-004: the customer forms/list panel is the primary content, so it
+            is a <main> landmark (was an <aside>). The map remains the
+            complementary surface. */}
+        <main className="site-panel">
           <CustomerForm onChanged={() => void reload()} />
           <CustomerImport onChanged={() => void reload()} />
           <CustomerList
             onChanged={() => void reload()}
             reloadVersion={version}
           />
-        </aside>
+        </main>
       </div>
     </AuthGate>
   );

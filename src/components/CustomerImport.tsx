@@ -4,7 +4,29 @@ import {
   errorsToCsv,
   CsvValidationError,
   type ImportReport,
+  type RowOutcome,
 } from '../lib/csvImport';
+
+/**
+ * A11Y-005: map a raw outcome identifier to a user-friendly word + glyph,
+ * mirroring the SiteOutcomeRow vocabulary. The glyph is aria-hidden; the word
+ * is the screen-reader text.
+ */
+function outcomeLabel(outcome: RowOutcome): { glyph: string; word: string } {
+  switch (outcome) {
+    case 'created':
+      return { glyph: '✓', word: 'Created' };
+    case 'geocode-failed':
+      return { glyph: '⚠', word: 'Geocode failed' };
+    case 'skipped-duplicate':
+      return { glyph: '–', word: 'Skipped (duplicate)' };
+    case 'missing-required-column':
+      return { glyph: '⚠', word: 'Missing required column' };
+    case 'error':
+    default:
+      return { glyph: '⚠', word: 'Error' };
+  }
+}
 
 /**
  * CSV bulk-import UI (AC-013 / AC-014 / AC-019).
@@ -18,6 +40,7 @@ import {
  */
 export function CustomerImport({ onChanged }: { onChanged: () => void }) {
   const fileId = useId();
+  const progressId = useId();
   const [fileError, setFileError] = useState<string | null>(null);
   const [report, setReport] = useState<ImportReport | null>(null);
   const [busy, setBusy] = useState(false);
@@ -117,66 +140,87 @@ export function CustomerImport({ onChanged }: { onChanged: () => void }) {
         </button>
       </form>
 
-      {busy && (
-        <div className="import-progress" aria-live="polite">
-          <label htmlFor="import-progress-bar">Importing</label>
-          <progress
-            id="import-progress-bar"
-            value={progress.done}
-            max={progress.total || undefined}
-          />
-          <span>
-            {progress.done}
-            {progress.total ? ` / ${progress.total}` : ''}
-          </span>
-          <button type="button" className="btn-secondary" onClick={cancel}>
-            Cancel
-          </button>
-        </div>
-      )}
+      {/* A11Y-003: render the live regions unconditionally; only the CONTENT
+          toggles, so screen readers observe them from first paint. */}
+      <div className="import-progress" aria-live="polite">
+        {busy && (
+          <>
+            <label htmlFor={progressId}>Importing</label>
+            <progress
+              id={progressId}
+              value={progress.done}
+              max={progress.total || undefined}
+            />
+            <span>
+              {progress.done}
+              {progress.total ? ` / ${progress.total}` : ''}
+            </span>
+            <button type="button" className="btn-secondary" onClick={cancel}>
+              Cancel
+            </button>
+          </>
+        )}
+      </div>
 
-      {report && (
-        <div className="report" aria-live="polite">
-          <h3>Import results</h3>
-          <p>
-            {createdCount} created
-            {report.cancelled ? ' (import was cancelled)' : ''}.
-          </p>
-          {report.missingColumns.length > 0 && (
-            <p role="alert" className="form-error">
-              Missing required column(s): {report.missingColumns.join(', ')}.
+      <div className="report" aria-live="polite">
+        {report && (
+          <>
+            <h3>Import results</h3>
+            <p>
+              {createdCount} created
+              {report.cancelled ? ' (import was cancelled)' : ''}.
             </p>
-          )}
-          {report.unknownColumns.length > 0 && (
-            <p className="helper-text">
-              Ignored unknown column(s): {report.unknownColumns.join(', ')}.
-            </p>
-          )}
-          <ul>
-            {report.rows.map((r) => (
-              <li
-                key={r.row}
-                className={`report-row report-row--${r.outcome}`}
+            {report.missingColumns.length > 0 && (
+              <p role="alert" className="form-error">
+                Missing required column(s): {report.missingColumns.join(', ')}.
+              </p>
+            )}
+            {report.unknownColumns.length > 0 && (
+              <p className="helper-text">
+                Ignored unknown column(s): {report.unknownColumns.join(', ')}.
+              </p>
+            )}
+            <ul>
+              {report.rows.map((r) => {
+                const label = outcomeLabel(r.outcome);
+                return (
+                  <li
+                    key={r.row}
+                    className={`report-row report-row--${r.outcome}`}
+                  >
+                    <span>Row {r.row}</span>
+                    <span>{r.customerName || '(no customer)'}</span>
+                    <span>{r.address || '(no address)'}</span>
+                    <span className="geo-status">
+                      <span className="geo-glyph" aria-hidden="true">
+                        {label.glyph}
+                      </span>
+                      {label.word}
+                    </span>
+                    <span>{r.message}</span>
+                  </li>
+                );
+              })}
+            </ul>
+            <div className="errors-actions">
+              <button
+                type="button"
+                className="btn-secondary"
+                onClick={() => void copyErrors()}
               >
-                <span>Row {r.row}</span>
-                <span>{r.customerName || '(no customer)'}</span>
-                <span>{r.address || '(no address)'}</span>
-                <span>
-                  {r.outcome}: {r.message}
-                </span>
-              </li>
-            ))}
-          </ul>
-          <div className="errors-actions">
-            <button type="button" className="btn-secondary" onClick={() => void copyErrors()}>
-              Copy errors
-            </button>
-            <button type="button" className="btn-secondary" onClick={downloadErrors}>
-              Download errors (CSV)
-            </button>
-          </div>
-        </div>
-      )}
+                Copy errors
+              </button>
+              <button
+                type="button"
+                className="btn-secondary"
+                onClick={downloadErrors}
+              >
+                Download errors (CSV)
+              </button>
+            </div>
+          </>
+        )}
+      </div>
     </section>
   );
 }

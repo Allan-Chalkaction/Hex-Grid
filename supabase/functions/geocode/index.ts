@@ -142,9 +142,16 @@ Deno.serve(async (req: Request) => {
     return json({ error: 'method not allowed' }, 405);
   }
 
+  // SA-001: require an Authorization header before doing any work. config.toml
+  // sets verify_jwt = true for this function; this is defence-in-depth so a
+  // missing/empty token is rejected here rather than silently proceeding.
+  const authHeader = req.headers.get('Authorization') ?? '';
+  if (!authHeader.trim()) {
+    return json({ error: 'missing authorization header' }, 401);
+  }
+
   // Forward the caller's JWT so the geocode_cache_insert (authenticated) RLS
   // policy passes on cache writes.
-  const authHeader = req.headers.get('Authorization') ?? '';
   const supabaseUrl = Deno.env.get('SUPABASE_URL') ?? '';
   const supabaseAnonKey = Deno.env.get('SUPABASE_ANON_KEY') ?? '';
   if (!supabaseUrl || !supabaseAnonKey) {

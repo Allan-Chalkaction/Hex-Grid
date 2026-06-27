@@ -2,6 +2,7 @@ import { useId, useState } from 'react';
 import {
   createCustomerWithSites,
   updateSiteLocation,
+  isValidLatLng,
   type SiteOutcome,
 } from '../lib/customers';
 import {
@@ -27,8 +28,16 @@ import {
  */
 
 interface SiteRow {
+  /** Stable per-row id used as the React key (CR-006), not the array index. */
+  id: string;
   name: string;
   address: string;
+}
+
+let siteRowSeq = 0;
+function newSiteRow(): SiteRow {
+  siteRowSeq += 1;
+  return { id: `site-row-${siteRowSeq}`, name: '', address: '' };
 }
 
 /** Maps a failure class to its specific recovery affordance (AC-012). */
@@ -71,7 +80,7 @@ export function CustomerForm({ onChanged }: { onChanged: () => void }) {
 
   const [customerName, setCustomerName] = useState('');
   const [vertical, setVertical] = useState('');
-  const [rows, setRows] = useState<SiteRow[]>([{ name: '', address: '' }]);
+  const [rows, setRows] = useState<SiteRow[]>([newSiteRow()]);
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [outcomes, setOutcomes] = useState<SiteOutcome[] | null>(null);
@@ -81,7 +90,7 @@ export function CustomerForm({ onChanged }: { onChanged: () => void }) {
   }
 
   function addRow() {
-    setRows((prev) => [...prev, { name: '', address: '' }]);
+    setRows((prev) => [...prev, newSiteRow()]);
   }
 
   function removeRow(i: number) {
@@ -117,7 +126,7 @@ export function CustomerForm({ onChanged }: { onChanged: () => void }) {
       });
       setOutcomes(result.sites);
       // Reset the site rows for the next add; keep the brand fields.
-      setRows([{ name: '', address: '' }]);
+      setRows([newSiteRow()]);
       onChanged();
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Could not add customer.');
@@ -155,7 +164,7 @@ export function CustomerForm({ onChanged }: { onChanged: () => void }) {
           <div className="site-rows">
             {rows.map((row, i) => (
               <SiteRowFields
-                key={i}
+                key={row.id}
                 index={i}
                 row={row}
                 canRemove={rows.length > 1}
@@ -180,23 +189,29 @@ export function CustomerForm({ onChanged }: { onChanged: () => void }) {
         </button>
       </form>
 
-      {submitting && (
-        <p className="geo-status geo-status--pending" aria-live="polite">
-          <span className="geo-glyph" aria-hidden="true">
-            ⏳
-          </span>
-          Geocoding sites…
-        </p>
-      )}
+      {/* A11Y-003: the live regions are rendered unconditionally so screen
+          readers observe them from first paint; only their CONTENT toggles. */}
+      <p className="geo-status geo-status--pending" aria-live="polite">
+        {submitting && (
+          <>
+            <span className="geo-glyph" aria-hidden="true">
+              …
+            </span>
+            Geocoding sites…
+          </>
+        )}
+      </p>
 
-      {outcomes && (
-        <div className="report" aria-live="polite">
-          <h3>Site results</h3>
-          {outcomes.map((o) => (
-            <SiteOutcomeRow key={o.siteId ?? o.address} outcome={o} />
-          ))}
-        </div>
-      )}
+      <div className="report" aria-live="polite">
+        {outcomes && (
+          <>
+            <h3>Site results</h3>
+            {outcomes.map((o) => (
+              <SiteOutcomeRow key={o.siteId ?? o.address} outcome={o} />
+            ))}
+          </>
+        )}
+      </div>
     </section>
   );
 }
@@ -298,10 +313,18 @@ function SiteOutcomeRow({ outcome }: { outcome: SiteOutcome }) {
     if (!outcome.siteId) {
       return;
     }
+    // CR-002: reject empty/whitespace BEFORE numeric coercion (Number('') is 0)
+    // and range-check before persisting, so blanks never save as 0,0.
+    if (lat.trim() === '' || lng.trim() === '') {
+      setFixError('Enter both latitude and longitude.');
+      return;
+    }
     const latN = Number(lat);
     const lngN = Number(lng);
-    if (!Number.isFinite(latN) || !Number.isFinite(lngN)) {
-      setFixError('Enter valid numeric latitude and longitude.');
+    if (!isValidLatLng(latN, lngN)) {
+      setFixError(
+        'Enter valid coordinates: latitude -90 to 90, longitude -180 to 180.',
+      );
       return;
     }
     setBusy(true);
@@ -321,7 +344,7 @@ function SiteOutcomeRow({ outcome }: { outcome: SiteOutcome }) {
     <div className="recovery">
       <p className="geo-status geo-status--failed" role="alert">
         <span className="geo-glyph" aria-hidden="true">
-          ✗
+          ⚠
         </span>
         {outcome.name}: {reasonLabel(reason)} — site saved without a location.
       </p>

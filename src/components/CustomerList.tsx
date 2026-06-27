@@ -1,9 +1,10 @@
-import { useEffect, useId, useState } from 'react';
+import { useEffect, useId, useRef, useState } from 'react';
 import { supabase } from '../lib/supabaseClient';
 import {
   updateSiteAddress,
   updateSiteLocation,
   deleteCustomer,
+  isValidLatLng,
   type SiteGeo,
 } from '../lib/customers';
 
@@ -135,16 +136,20 @@ function CustomerRow({
 }) {
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const dialogRef = useRef<HTMLDialogElement>(null);
+  const deleteBtnRef = useRef<HTMLButtonElement>(null);
 
-  async function handleDelete() {
-    const confirmed = window.confirm(
-      `Delete "${customer.name}"? This deletes ${sites.length} site${
-        sites.length === 1 ? '' : 's'
-      }.`,
-    );
-    if (!confirmed) {
-      return;
-    }
+  const siteCount = `${sites.length} site${sites.length === 1 ? '' : 's'}`;
+
+  // A11Y-002 / M-6: a native <dialog> confirm replaces window.confirm — real
+  // buttons, ESC cancels, focus returns to the trigger on close.
+  function requestDelete() {
+    setError(null);
+    dialogRef.current?.showModal();
+  }
+
+  async function confirmDelete() {
+    dialogRef.current?.close();
     setBusy(true);
     setError(null);
     try {
@@ -162,14 +167,41 @@ function CustomerRow({
       <div className="row-actions">
         <strong>{customer.name}</strong>
         <button
+          ref={deleteBtnRef}
           type="button"
           className="btn-danger"
           disabled={busy}
-          onClick={() => void handleDelete()}
+          onClick={requestDelete}
         >
-          Delete customer ({sites.length} site{sites.length === 1 ? '' : 's'})
+          Delete customer ({siteCount})
         </button>
       </div>
+
+      <dialog
+        ref={dialogRef}
+        className="confirm-dialog"
+        onClose={() => deleteBtnRef.current?.focus()}
+      >
+        <p>
+          Delete &ldquo;{customer.name}&rdquo;? This deletes {siteCount}.
+        </p>
+        <div className="row-actions">
+          <button
+            type="button"
+            className="btn-danger"
+            onClick={() => void confirmDelete()}
+          >
+            Delete customer
+          </button>
+          <button
+            type="button"
+            className="btn-secondary"
+            onClick={() => dialogRef.current?.close()}
+          >
+            Cancel
+          </button>
+        </div>
+      </dialog>
       {error && (
         <p role="alert" className="form-error">
           {error}
@@ -207,6 +239,14 @@ function SiteRow({
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [note, setNote] = useState<string | null>(null);
+  const firstFieldRef = useRef<HTMLInputElement>(null);
+
+  // A11Y-001: move focus to the first revealed input when entering an edit mode.
+  useEffect(() => {
+    if (mode !== 'view') {
+      firstFieldRef.current?.focus();
+    }
+  }, [mode]);
 
   const located = site.lat != null && site.lng != null;
 
@@ -231,10 +271,18 @@ function SiteRow({
   }
 
   async function saveMove() {
+    // CR-002: reject empty/whitespace BEFORE numeric coercion (Number('') is 0)
+    // and range-check before persisting, so blanks never save as 0,0.
+    if (lat.trim() === '' || lng.trim() === '') {
+      setError('Enter both latitude and longitude.');
+      return;
+    }
     const latN = Number(lat);
     const lngN = Number(lng);
-    if (!Number.isFinite(latN) || !Number.isFinite(lngN)) {
-      setError('Enter valid numeric latitude and longitude.');
+    if (!isValidLatLng(latN, lngN)) {
+      setError(
+        'Enter valid coordinates: latitude -90 to 90, longitude -180 to 180.',
+      );
       return;
     }
     setBusy(true);
@@ -262,7 +310,7 @@ function SiteRow({
         }
       >
         <span className="geo-glyph" aria-hidden="true">
-          {located ? '✓' : '✗'}
+          {located ? '✓' : '⚠'}
         </span>
         {located ? 'Located' : 'No location'}
       </span>
@@ -291,6 +339,7 @@ function SiteRow({
           <span className="field">
             <label htmlFor={addrId}>New address</label>
             <input
+              ref={firstFieldRef}
               id={addrId}
               type="text"
               value={address}
@@ -320,6 +369,7 @@ function SiteRow({
           <span className="field">
             <label htmlFor={latId}>Latitude</label>
             <input
+              ref={firstFieldRef}
               id={latId}
               type="number"
               step="any"

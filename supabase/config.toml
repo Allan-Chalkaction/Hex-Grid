@@ -364,6 +364,13 @@ deno_version = 2
 # [edge_runtime.secrets]
 # secret_key = "env(SECRET_VALUE)"
 
+# SA-001: the geocode function requires a valid Supabase JWT. With verify_jwt
+# enabled the platform rejects unauthenticated calls before the function runs;
+# the function itself also rejects a missing Authorization header (defence in
+# depth).
+[functions.geocode]
+verify_jwt = true
+
 [analytics]
 enabled = true
 port = 54327

@@ -260,8 +260,16 @@ export function errorsToCsv(report: ImportReport): string {
 }
 
 function csvCell(value: string): string {
-  if (/[",\n]/.test(value)) {
-    return `"${value.replace(/"/g, '""')}"`;
+  // SA-004: neutralize CSV formula injection. A cell beginning with a formula
+  // trigger (=, +, -, @, tab, CR) is prefixed with a single quote so a
+  // spreadsheet treats it as text, NOT a formula. Applied BEFORE RFC-4180
+  // quote-escaping below.
+  let safe = value;
+  if (/^[=+\-@\t\r]/.test(safe)) {
+    safe = `'${safe}`;
   }
-  return value;
+  if (/[",\n]/.test(safe)) {
+    return `"${safe.replace(/"/g, '""')}"`;
+  }
+  return safe;
 }
