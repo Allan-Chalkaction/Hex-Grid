@@ -4,7 +4,7 @@
 --
 -- Build order is BINDING (mirrors 0001's helper-before-policy discipline):
 --   1. customer table  ->  2. customer RLS (4 per-table policies)
---   ->  3. site.customer_id (+ empty-site guard)  ->  4. site_geo view
+--   ->  3. site.customer_id (expand-contract backfill)  ->  4. site_geo view
 --   ->  5. place_site RPC (default deterministic persistence path).
 --
 -- This migration REUSES 0001's auth_tenant_ids() helper and geocode_cache table
@@ -15,7 +15,8 @@
 --   drop function if exists place_site(uuid, text, text, double precision, double precision);
 --   drop view if exists site_geo;
 --   alter table site drop column customer_id;
---   drop table customer;
+--   drop table customer;  -- also removes any 'Unassigned' placeholder customers
+--                         -- created by the section-3 backfill.
 
 -- ---------------------------------------------------------------------------
 -- 1. customer table (the brand). Tenant-private business data.
@@ -68,20 +69,43 @@ create policy customer_tenant_delete on customer
 
 -- ---------------------------------------------------------------------------
 -- 3. site.customer_id: every site belongs to exactly one customer; deleting a
---    customer cascades its sites. NOT NULL is safe because site is empty
---    post-W1 (no production data, no backfill). The guard raises loudly if a
---    row ever existed so the NOT NULL add can never silently fail.
+--    customer cascades its sites.
+--
+--    Production-safe expand-contract backfill (works on BOTH a greenfield empty
+--    site table AND a populated one carrying W1 rows):
+--      (a) EXPAND  — add customer_id NULLABLE (no rewrite to NOT NULL yet, so the
+--                    add never fails on existing rows);
+--      (b) BACKFILL — tenant-scoped + idempotent: ensure an 'Unassigned'
+--                    placeholder customer per tenant that has un-assigned sites
+--                    (via the unique (tenant_id, name) key, ON CONFLICT DO
+--                    NOTHING), then point each orphan site at its own tenant's
+--                    placeholder. On a greenfield empty table both statements
+--                    match zero rows — a clean no-op.
+--      (c) CONTRACT — enforce NOT NULL now that every row is assigned.
+--    The whole block is transactional (the migration runs in one transaction;
+--    Postgres DDL is transactional), so a failure rolls the section back whole.
 -- ---------------------------------------------------------------------------
-do $$
-begin
-  if (select count(*) from site) <> 0 then
-    raise exception 'site not empty: 0002 assumes an empty post-W1 site table (no backfill path defined for customer_id NOT NULL)';
-  end if;
-end;
-$$;
-
+-- (a) EXPAND: nullable add — safe against existing rows.
 alter table site
-  add column customer_id uuid not null references customer (id) on delete cascade;
+  add column customer_id uuid references customer (id) on delete cascade;
+
+-- (b) BACKFILL: idempotent, tenant-scoped.
+insert into customer (tenant_id, name)
+  select distinct s.tenant_id, 'Unassigned'
+  from site s
+  where s.customer_id is null
+  on conflict (tenant_id, name) do nothing;
+
+update site s
+  set customer_id = c.id
+  from customer c
+  where c.tenant_id = s.tenant_id
+    and c.name = 'Unassigned'
+    and s.customer_id is null;
+
+-- (c) CONTRACT: enforce NOT NULL after every row is backfilled.
+alter table site
+  alter column customer_id set not null;
 
 create index site_customer_id_idx on site (customer_id);
 
