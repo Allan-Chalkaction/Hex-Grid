@@ -259,7 +259,7 @@ export function errorsToCsv(report: ImportReport): string {
   return [header, ...lines].join('\n');
 }
 
-function csvCell(value: string): string {
+export function csvCell(value: string): string {
   // SA-004: neutralize CSV formula injection. A cell beginning with a formula
   // trigger (=, +, -, @, tab, CR) is prefixed with a single quote so a
   // spreadsheet treats it as text, NOT a formula. Applied BEFORE RFC-4180

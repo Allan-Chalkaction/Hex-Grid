@@ -35,5 +35,13 @@ export default tseslint.config(
       ],
     },
   },
+  {
+    // Tests run under node (process.env) in addition to the browser-shaped
+    // globals already provided above. The config-file itself is node too.
+    files: ['tests/**/*.{ts,tsx}', 'vitest.config.ts'],
+    languageOptions: {
+      globals: globals.node,
+    },
+  },
   prettier,
 );
