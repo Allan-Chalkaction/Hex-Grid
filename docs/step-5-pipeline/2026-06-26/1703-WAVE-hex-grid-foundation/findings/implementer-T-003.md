@@ -1,0 +1,7 @@
+# Implementer — T-003
+
+STATUS: complete
+SHA: 012c557ee4ca7a46f214fa88e3e6c8bf202f829c
+FILES: supabase/seed.sql
+
+Seed: dev tenant + dev membership against a fixed dev UUID (00000000-...-d1), upsert-idempotent so `db reset` is re-runnable. Documents both ADR paths (operator-creates-first AND self-contained). Chose the self-contained path as default: the seed itself upserts a LOCAL-DEV auth.users row (bcrypt password via pgcrypto crypt()) + an auth.identities row so a clean `db reset` stands the system up with zero manual steps. Investigation-first debugging: first login attempt returned GoTrue 500; traced the auth container logs to the real cause — `Scan error on column index 3, name confirmation_token: converting NULL to string is unsupported` (GoTrue scans token columns as non-null Go strings). Fixed by setting confirmation_token/recovery_token/email_change*/email_change_token_* to '' in the seed insert. VALIDATED LIVE: `supabase db reset` applies migration+seed with no SQL error; tenant count=1, membership count=1, membership.tenant_id matches seeded tenant; dev login via GoTrue POST /token returns an access_token with user_id matching the seeded UUID; authed PostgREST GET /rest/v1/tenant returns [{name: 'Dev Tenant'}], GET /rest/v1/site returns [] (empty but real), anon GETs return [] (AC-001/003/005/006). The local dev password is a documented fixture, excluded from AC-010 (not a service-role/anon key).

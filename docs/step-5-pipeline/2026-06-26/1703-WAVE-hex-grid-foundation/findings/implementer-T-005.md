@@ -1,0 +1,7 @@
+# Implementer — T-005
+
+STATUS: complete
+SHA: 8cb6e6abff79c13ead2800ce2465ff8ef7b64f34
+FILES: src/components/MapShell.tsx, src/components/SiteList.tsx, src/components/AuthGate.tsx, src/App.tsx, src/main.tsx, src/index.css
+
+App composition + UI. MapShell: MapLibre Map (OpenFreeMap liberty style, no key; center [-98.5795,39.8283]; zoom 4) + deck.gl MapboxOverlay (one empty layer) added as a MapLibre control. SiteList: on mount actually calls supabase.from('site').select(...) (RLS auto-scopes), renders count + list with loading/error/empty states, count as plain SR-readable text. AuthGate: bare email/password login consuming auth.ts ONLY (never supabase.auth directly); WCAG 2.2 AA — labeled inputs (useId), correct type+autocomplete, real <button>, errors via role=alert/aria-live, :focus-visible outline, not-a-keyboard-trap map. App renders SiteList behind AuthGate over MapShell; main.tsx mounts the React root. VALIDATED LIVE: `vite build` exits 0 (410 modules, includes maplibre+deck webgl chunk). Headless Chrome render (signed-out): login form mounts, ZERO app-level console errors. Headless Chrome via CDP (signed-in: filled form + clicked submit): post-login DOM = AUTHED-SHELL, WebGL canvas present=true, APP-LEVEL ERRORS=0 — proves AC-004 (basemap+overlay mount, no console errors) and AC-005 (authed fetch fires behind AuthGate) end-to-end. AC-005 wire: from('site') in SiteList.tsx + App renders SiteList inside AuthGate. AC-007 wire: AuthGate imports onAuthStateChange/getSession from ../lib/auth. typecheck/eslint/prettier/build all exit 0.

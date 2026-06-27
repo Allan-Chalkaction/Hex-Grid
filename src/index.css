@@ -1,0 +1,96 @@
+:root {
+  font-family:
+    system-ui,
+    -apple-system,
+    'Segoe UI',
+    Roboto,
+    sans-serif;
+  line-height: 1.5;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  margin: 0;
+  height: 100%;
+}
+
+/* Visible focus indicator for keyboard users (WCAG 2.2 AA). */
+:focus-visible {
+  outline: 2px solid #1a73e8;
+  outline-offset: 2px;
+}
+
+.app-shell {
+  position: relative;
+  height: 100%;
+  width: 100%;
+}
+
+.app-header {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.5rem 1rem;
+  background: rgba(255, 255, 255, 0.92);
+  border-bottom: 1px solid #ddd;
+}
+
+.site-panel {
+  position: absolute;
+  top: 3rem;
+  left: 1rem;
+  z-index: 1;
+  width: 18rem;
+  max-height: 70vh;
+  overflow: auto;
+  padding: 0.5rem 1rem;
+  background: rgba(255, 255, 255, 0.95);
+  border: 1px solid #ddd;
+  border-radius: 8px;
+}
+
+.site-list h2 {
+  margin-top: 0.5rem;
+  font-size: 1.1rem;
+}
+
+.auth-gate {
+  max-width: 22rem;
+  margin: 4rem auto;
+  padding: 0 1rem;
+}
+
+.auth-gate .field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  margin-bottom: 1rem;
+}
+
+.auth-gate input {
+  padding: 0.5rem;
+  font-size: 1rem;
+}
+
+.auth-gate button[type='submit'] {
+  width: 100%;
+  padding: 0.6rem;
+  font-size: 1rem;
+  cursor: pointer;
+}
+
+.form-error {
+  color: #b00020;
+  font-weight: 600;
+}

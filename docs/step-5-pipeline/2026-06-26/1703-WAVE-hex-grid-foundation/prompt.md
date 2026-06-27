@@ -1,3 +1,12 @@
+# Wave 1 — hex-grid map shell + data foundation
+Ticket key: HGF-001
+
+Build ONLY Wave 1 as specified below. Greenfield empty repo. Honor the locked stack
+(Supabase + PostGIS + RLS, React + Vite + TS, MapLibre + deck.gl, OpenFreeMap tiles).
+Respect the explicit OUT-of-scope list — do not build Wave 2+ behavior.
+NOTE: the RLS section was corrected per cto-advisor (per-table policies; non-recursive
+membership; geocode_cache is tenant-shared).
+
 # Wave 1 spec — Map shell + data foundation (BUILD TARGET)
 
 **This is the scope for the first `/orchestrated` run.** Greenfield empty repo. Goal: a reviewed,
