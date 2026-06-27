@@ -107,6 +107,26 @@ export async function placeSite(
 }
 
 /**
+ * Update a site's location (move-site, and the manual-coords recovery path for a
+ * failed geocode — AC-012/AC-015). API-first via PostgREST using EWKT; PostGIS
+ * accepts the EWKT string on the `geog` column. Passing a null point clears it.
+ */
+export async function updateSiteLocation(
+  siteId: string,
+  point: { lat: number; lng: number } | null,
+): Promise<void> {
+  const { error } = await supabase
+    .from('site')
+    .update({
+      geog: point ? `SRID=4326;POINT(${point.lng} ${point.lat})` : null,
+    })
+    .eq('id', siteId);
+  if (error) {
+    throw new Error(error.message);
+  }
+}
+
+/**
  * Manual-add: upsert the customer, geocode every site (one batch call through
  * the seam — the geocoder IS invoked per site, AC-009), then persist each site.
  * Returns per-site outcomes for the status UI.

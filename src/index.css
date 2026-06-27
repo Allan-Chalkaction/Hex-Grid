@@ -94,3 +94,175 @@ body,
   color: #b00020;
   font-weight: 600;
 }
+
+/* ---------------------------------------------------------------------------
+ * Wave 2: customer add-form, CSV import, and CRUD-list surfaces.
+ * Plain semantic CSS (no Tailwind/tokens), following the W1 literals
+ * (#1a73e8 focus-ring, #b00020 error, #555 helper text).
+ * ------------------------------------------------------------------------- */
+
+.panel-section {
+  margin-bottom: 1.5rem;
+}
+
+.panel-section h2 {
+  margin-top: 0.5rem;
+  margin-bottom: 0.5rem;
+  font-size: 1.1rem;
+}
+
+.helper-text {
+  color: #555;
+  font-size: 0.85rem;
+  margin: 0.25rem 0;
+}
+
+/* Generic field group (the AuthGate `.field` is scoped under .auth-gate). */
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  margin-bottom: 0.75rem;
+}
+
+.field input,
+.field select,
+.field textarea {
+  padding: 0.4rem;
+  font-size: 0.95rem;
+}
+
+.field-inline {
+  display: flex;
+  gap: 0.5rem;
+  align-items: flex-end;
+}
+
+.site-rows {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  margin-bottom: 0.75rem;
+}
+
+.site-row {
+  border: 1px solid #ddd;
+  border-radius: 6px;
+  padding: 0.5rem;
+}
+
+.row-actions {
+  display: flex;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+button.btn-secondary,
+button.btn-danger {
+  padding: 0.4rem 0.7rem;
+  font-size: 0.9rem;
+  cursor: pointer;
+}
+
+button.btn-danger {
+  color: #b00020;
+}
+
+/* Per-site geocode status — never signalled by color alone: each state carries
+ * a word + a glyph in the markup, color is only reinforcement (AC-012/AC-020). */
+.geo-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  font-weight: 600;
+}
+
+.geo-glyph {
+  font-style: normal;
+}
+
+.geo-status--pending {
+  color: #555;
+}
+
+.geo-status--ok {
+  color: #146c2e;
+}
+
+.geo-status--failed {
+  color: #b00020;
+}
+
+.recovery {
+  margin-top: 0.5rem;
+  padding: 0.5rem;
+  background: #f6f6f6;
+  border: 1px solid #e2e2e2;
+  border-radius: 6px;
+}
+
+.recovery .field {
+  margin-bottom: 0.5rem;
+}
+
+/* CSV-import per-row results report + progress. */
+.import-progress {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin: 0.5rem 0;
+}
+
+.import-progress progress {
+  flex: 1;
+}
+
+.report {
+  margin-top: 0.75rem;
+}
+
+.report-row {
+  display: flex;
+  gap: 0.5rem;
+  padding: 0.25rem 0;
+  border-bottom: 1px solid #eee;
+  font-size: 0.9rem;
+}
+
+.report-row--created {
+  color: #146c2e;
+}
+
+.report-row--geocode-failed,
+.report-row--error {
+  color: #b00020;
+}
+
+.report-row--skipped-duplicate,
+.report-row--missing-required-column {
+  color: #7a5b00;
+}
+
+.errors-actions {
+  display: flex;
+  gap: 0.5rem;
+  margin-top: 0.5rem;
+}
+
+/* CRUD list. */
+.customer-list .customer-item {
+  border-bottom: 1px solid #eee;
+  padding: 0.5rem 0;
+}
+
+.customer-list .site-item {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.25rem 0 0.25rem 0.75rem;
+}
+
+.customer-list .site-item .site-name {
+  font-weight: 600;
+}
