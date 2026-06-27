@@ -266,3 +266,12 @@ button.btn-danger {
 .customer-list .site-item .site-name {
   font-weight: 600;
 }
+
+/* AC-020 contrast: any link used as BODY TEXT on the new surfaces uses the
+ * darker #1558b0 (~5.9:1 on white, passes WCAG 2.2 AA text contrast >= 4.5:1)
+ * rather than the lighter #1a73e8 (which is the :focus-visible OUTLINE — a
+ * non-text UI component at 3:1, intentionally left as-is). */
+.app-link,
+.site-panel a {
+  color: #1558b0;
+}

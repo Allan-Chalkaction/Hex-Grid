@@ -126,6 +126,54 @@ export async function updateSiteLocation(
   }
 }
 
+export interface SiteUpdateOutcome {
+  status: 'geocoded' | 'failed';
+  reason: GeocodeFailureReason | null;
+}
+
+/**
+ * Edit a site's address: re-geocode the new address through the seam, then
+ * update the address + location (AC-015). API-first via PostgREST (EWKT). A
+ * failed re-geocode clears the location and is reported so the UI can flag it.
+ */
+export async function updateSiteAddress(
+  siteId: string,
+  address: string,
+  geocoder: Geocoder = defaultGeocoder,
+): Promise<SiteUpdateOutcome> {
+  const [result] = await geocoder.geocodeDetailed([address]);
+  const { error } = await supabase
+    .from('site')
+    .update({
+      address,
+      geog: result.point
+        ? `SRID=4326;POINT(${result.point.lng} ${result.point.lat})`
+        : null,
+    })
+    .eq('id', siteId);
+  if (error) {
+    throw new Error(error.message);
+  }
+  return {
+    status: result.point ? 'geocoded' : 'failed',
+    reason: result.point ? null : result.reason,
+  };
+}
+
+/**
+ * Delete a customer; the `site.customer_id` FK `on delete cascade` (0002)
+ * removes its sites in the database (AC-015).
+ */
+export async function deleteCustomer(customerId: string): Promise<void> {
+  const { error } = await supabase
+    .from('customer')
+    .delete()
+    .eq('id', customerId);
+  if (error) {
+    throw new Error(error.message);
+  }
+}
+
 /**
  * Manual-add: upsert the customer, geocode every site (one batch call through
  * the seam — the geocoder IS invoked per site, AC-009), then persist each site.
