@@ -53,6 +53,10 @@ export function saturationLayer(
   cells: CoverageCell[],
   trigger: LayerTriggerKey,
 ): H3HexagonLayer<CoverageCell> {
+  // PR-003: `computeSaturation` already returns only coverage>=1 cells, so this
+  // is redundant on the production path. It is RETAINED as the defensive contract
+  // for the standalone test path (saturationLayer.test.ts passes mixed-coverage
+  // input directly and asserts open cells are filtered out of the wash data).
   const covered = cells.filter((c) => c.coverage >= 1);
   return new H3HexagonLayer<CoverageCell>({
     id: 'saturation',

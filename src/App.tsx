@@ -134,6 +134,10 @@ export function App() {
           bounds: viewport.bounds,
           zoom: viewport.zoom,
           center: viewport.center,
+          // PR-002: only pay the ranked open-cell cost when the prospecting
+          // overlay is on (the layer is its only reactive consumer). `openCount`
+          // is computed regardless, so the summary is unaffected.
+          wantOpenCells: showProspecting,
         }),
       );
       setComputing(false);
@@ -142,19 +146,33 @@ export function App() {
       cancelled = true;
       clearTimeout(id);
     };
-  }, [sites, selectedVertical, viewport, version]);
+  }, [sites, selectedVertical, viewport, version, showProspecting]);
 
   // AC-016: ease the map to the nearest open cell's centroid + announce it via
   // the panel aria-live summary; the post-jump recompute clears the announce.
   const handleJumpToOpen = useCallback(() => {
-    const nearest = saturation.openCells[0];
+    // The ranked open cells are precomputed only when prospecting is active
+    // (PR-002); when it is off, derive just the nearest open cell on demand from
+    // the current viewport so jump-to-open keeps working without paying the rank
+    // cost on every recompute.
+    let nearest = saturation.openCells[0];
+    if (!nearest && viewport !== null && selectedVertical !== null) {
+      nearest = computeSaturation({
+        sites,
+        selectedVertical,
+        bounds: viewport.bounds,
+        zoom: viewport.zoom,
+        center: viewport.center,
+        wantOpenCells: true,
+      }).openCells[0];
+    }
     if (!nearest) {
       return;
     }
     const [lat, lng] = cellToLatLng(nearest.h3);
     setFlyToTarget({ lat, lng });
     setAnnouncement('Centered on nearest open area.');
-  }, [saturation.openCells]);
+  }, [saturation.openCells, viewport, sites, selectedVertical]);
 
   const reload = useCallback(async () => {
     const { data } = await supabase.from('site_geo').select('*').order('name');

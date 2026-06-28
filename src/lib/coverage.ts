@@ -250,6 +250,13 @@ export interface ComputeSaturationParams {
   cellCap?: number;
   padFraction?: number;
   prospectTopN?: number;
+  /**
+   * PR-002 — gate the ranked open-cell work. When `false`, `rankOpenCells` is
+   * skipped and `openCells` returns `[]` (the prospecting overlay is off, the
+   * common default). `openCount` is still derived independently, so the textual
+   * summary is unaffected. Defaults `true` (back-compat / direct callers).
+   */
+  wantOpenCells?: boolean;
 }
 
 /**
@@ -277,6 +284,7 @@ export function computeSaturation(
     cellCap = DEFAULT_CELL_CAP,
     padFraction = DEFAULT_PAD_FRACTION,
     prospectTopN = DEFAULT_PROSPECT_N,
+    wantOpenCells = true,
   } = params;
 
   const resolution = resolutionForZoom(zoom);
@@ -313,7 +321,12 @@ export function computeSaturation(
   }));
 
   const cells = allCells.filter((c) => c.coverage >= 1);
-  const openCells = rankOpenCells(allCells, center, prospectTopN);
+  // PR-002 — only rank the open cells when a consumer needs them (the
+  // prospecting overlay). `openCount` is derived independently below so the
+  // textual summary stays correct even when the ranked array is skipped.
+  const openCells = wantOpenCells
+    ? rankOpenCells(allCells, center, prospectTopN)
+    : [];
   const openCount = allCells.length - cells.length;
 
   return {

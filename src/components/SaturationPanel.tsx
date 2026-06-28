@@ -67,23 +67,30 @@ export function SaturationPanel({
 
   // The single aria-live summary line — the SR carrier of the canvas (AC-025) +
   // the computing/cap/empty states (AC-026). A transient action announcement
-  // (AS-T6 jump) takes precedence until the next recompute clears it.
-  let summary: string;
-  if (announcement) {
-    summary = announcement;
-  } else if (noVertical) {
-    summary = 'Select a vertical to view saturation.';
-  } else if (computing) {
-    summary = 'Computing saturation…';
-  } else if (capped) {
-    summary = 'Zoom in to compute saturation';
-  } else if (coveredCount === 0) {
-    summary = `No ${label} zones in this area — all open.`;
-  } else {
-    summary = `Saturation for ${label}: ${coveredCount} covered cells, ${openCount} open cells near center.`;
+  // (AS-T6 jump) takes precedence until the next recompute clears it. A11Y-002:
+  // when no vertical is selected the live region is SEEDED EMPTY (the W3
+  // empty-seed live-region pattern — so a screen reader does not auto-announce at
+  // first paint); the "Select a vertical…" prompt is surfaced as STATIC text
+  // instead (rendered below, outside the live region).
+  let summary = '';
+  if (!noVertical) {
+    if (announcement) {
+      summary = announcement;
+    } else if (computing) {
+      summary = 'Computing saturation…';
+    } else if (capped) {
+      summary = 'Zoom in to compute saturation';
+    } else if (coveredCount === 0) {
+      summary = `No ${label} zones in this area — all open.`;
+    } else {
+      summary = `Saturation for ${label}: ${coveredCount} covered cells, ${openCount} open cells near center.`;
+    }
   }
 
-  const showLegend = !noVertical && showHeatmap;
+  // A11Y-001: the legend is the key for BOTH the heatmap buckets AND the green
+  // prospect open-cell outlines (the "Open (0 zones)" row), so it must show
+  // whenever EITHER overlay is on — not heatmap alone.
+  const showLegend = !noVertical && (showHeatmap || showProspecting);
 
   return (
     <aside className="saturation-panel" aria-label="Saturation controls">
@@ -143,6 +150,13 @@ export function SaturationPanel({
             </li>
           ))}
         </ul>
+      )}
+
+      {noVertical && (
+        // A11Y-002: the "select a vertical" prompt is STATIC (non-live) so it is
+        // not auto-announced at first paint; the live region below stays seeded
+        // empty until a real saturation state flows through it.
+        <p className="helper-text">Select a vertical to view saturation.</p>
       )}
 
       <p className="helper-text" aria-live="polite">
