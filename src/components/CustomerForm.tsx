@@ -1,15 +1,23 @@
-import { useId, useState } from 'react';
+import { useId, useRef, useState } from 'react';
 import {
   createCustomerWithSites,
   updateSiteLocation,
   isValidLatLng,
+  verticalLabel,
   VERTICAL_OPTIONS,
   type SiteOutcome,
 } from '../lib/customers';
+import { findConflicts, type Conflict } from '../lib/conflicts';
 import {
   defaultGeocoder,
   type GeocodeFailureReason,
 } from '../lib/geocoder';
+
+/** A prospective add-site grouped with the conflicts it would create. */
+interface ConflictGroup {
+  siteLabel: string;
+  conflicts: Conflict[];
+}
 
 /**
  * Manual-add UI (AC-011 / AC-012).
@@ -78,6 +86,7 @@ function reasonLabel(reason: GeocodeFailureReason | null): string {
 export function CustomerForm({ onChanged }: { onChanged: () => void }) {
   const nameId = useId();
   const verticalId = useId();
+  const conflictHeadingId = useId();
 
   const [customerName, setCustomerName] = useState('');
   const [vertical, setVertical] = useState('');
@@ -85,6 +94,19 @@ export function CustomerForm({ onChanged }: { onChanged: () => void }) {
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [outcomes, setOutcomes] = useState<SiteOutcome[] | null>(null);
+
+  // EX-T6 / AC-016/AC-020: warn-with-confirm conflict dialog on add. `checking`
+  // drives the in-flight trigger ("Checking exclusivity…"); `pendingGroups` holds
+  // the consolidated conflicts; `pendingFilled` is the rows to persist on "Add
+  // anyway". `addNote` reports a cancelled add. Reuses the W2 A11Y-002 native
+  // <dialog> pattern (showModal, real buttons, ESC cancels, onClose refocus).
+  const [checking, setChecking] = useState(false);
+  const [pendingGroups, setPendingGroups] = useState<ConflictGroup[]>([]);
+  const [pendingFilled, setPendingFilled] = useState<SiteRow[]>([]);
+  const [addNote, setAddNote] = useState<string | null>(null);
+  const conflictDialogRef = useRef<HTMLDialogElement>(null);
+  const submitBtnRef = useRef<HTMLButtonElement>(null);
+  const cancelConflictRef = useRef<HTMLButtonElement>(null);
 
   function updateRow(i: number, patch: Partial<SiteRow>) {
     setRows((prev) => prev.map((r, idx) => (idx === i ? { ...r, ...patch } : r)));
@@ -100,22 +122,11 @@ export function CustomerForm({ onChanged }: { onChanged: () => void }) {
     );
   }
 
-  async function handleSubmit(e: React.FormEvent) {
-    e.preventDefault();
-    setError(null);
-    setOutcomes(null);
-
-    const filled = rows.filter((r) => r.address.trim().length > 0);
-    if (!customerName.trim()) {
-      setError('Enter a customer name.');
-      return;
-    }
-    if (filled.length === 0) {
-      setError('Add at least one site with an address.');
-      return;
-    }
-
+  /** Persist the customer + sites (the W2 path). Re-geocodes via the cache-first
+   *  seam (a hit after the conflict-preview geocode). AC-024: always persists. */
+  async function doPersist(filled: SiteRow[]) {
     setSubmitting(true);
+    setError(null);
     try {
       const result = await createCustomerWithSites({
         customerName: customerName.trim(),
@@ -136,6 +147,87 @@ export function CustomerForm({ onChanged }: { onChanged: () => void }) {
     } finally {
       setSubmitting(false);
     }
+  }
+
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    setError(null);
+    setOutcomes(null);
+    setAddNote(null);
+
+    const filled = rows.filter((r) => r.address.trim().length > 0);
+    if (!customerName.trim()) {
+      setError('Enter a customer name.');
+      return;
+    }
+    if (filled.length === 0) {
+      setError('Add at least one site with an address.');
+      return;
+    }
+
+    // EX-T6 / AC-016: BEFORE persisting, geocode the prospective sites and check
+    // each resolved point for same-vertical conflicts (a new site claims no zone
+    // yet ⇒ radius null; it still conflicts if it lands in a neighbor's zone). A
+    // null vertical ⇒ findConflicts returns empty ⇒ no dialog. The persist path
+    // re-geocodes through the cache-first seam (a hit), so points agree.
+    setChecking(true);
+    try {
+      const geocoded = await defaultGeocoder.geocodeDetailed(
+        filled.map((r) => r.address.trim()),
+      );
+      const groups: ConflictGroup[] = [];
+      for (let i = 0; i < filled.length; i++) {
+        const pt = geocoded[i].point;
+        if (!pt) {
+          continue; // un-geocoded site can't be checked; persisted + flagged.
+        }
+        const conflicts = await findConflicts(
+          { lng: pt.lng, lat: pt.lat },
+          null,
+          vertical || null,
+          null,
+        );
+        if (conflicts.length > 0) {
+          groups.push({
+            siteLabel: filled[i].name.trim() || filled[i].address.trim(),
+            conflicts,
+          });
+        }
+      }
+
+      if (groups.length > 0) {
+        // Conflicts → ONE consolidated warn dialog; the user decides (AC-024).
+        setPendingGroups(groups);
+        setPendingFilled(filled);
+        setChecking(false);
+        conflictDialogRef.current?.showModal();
+        // Default focus on Cancel (the safe choice) so a reflexive Enter never
+        // silently overrides a conflict.
+        cancelConflictRef.current?.focus();
+        return;
+      }
+
+      // No conflicts → persist.
+      setChecking(false);
+      await doPersist(filled);
+    } catch (err) {
+      setChecking(false);
+      setError(
+        err instanceof Error ? err.message : 'Could not check exclusivity.',
+      );
+    }
+  }
+
+  // "Add anyway" — the non-blocking override: persist despite the conflicts.
+  async function confirmAdd() {
+    conflictDialogRef.current?.close();
+    await doPersist(pendingFilled);
+  }
+
+  // "Cancel" — abort the add; nothing persists.
+  function cancelAdd() {
+    conflictDialogRef.current?.close();
+    setAddNote('Add cancelled — conflict not overridden.');
   }
 
   return (
@@ -195,10 +287,71 @@ export function CustomerForm({ onChanged }: { onChanged: () => void }) {
           </p>
         )}
 
-        <button type="submit" disabled={submitting}>
-          {submitting ? 'Adding & geocoding…' : 'Add customer'}
+        <button
+          ref={submitBtnRef}
+          type="submit"
+          disabled={submitting || checking}
+        >
+          {checking
+            ? 'Checking exclusivity…'
+            : submitting
+              ? 'Adding & geocoding…'
+              : 'Add customer'}
         </button>
+        {addNote && (
+          <p className="helper-text" aria-live="polite">
+            {addNote}
+          </p>
+        )}
       </form>
+
+      {/* EX-T6 / AC-016/AC-020/AC-023: warn-with-confirm conflict dialog on add.
+          Reuses the W2 A11Y-002 native <dialog> (showModal, real buttons, ESC
+          cancels, onClose refocuses the trigger). Default focus on Cancel. */}
+      <dialog
+        ref={conflictDialogRef}
+        className="confirm-dialog"
+        aria-labelledby={conflictHeadingId}
+        onClose={() => submitBtnRef.current?.focus()}
+      >
+        <h2 id={conflictHeadingId}>Exclusivity conflict</h2>
+        <p>
+          Adding this customer falls within the exclusivity zone of same-vertical
+          site(s):
+        </p>
+        {pendingGroups.map((g) => (
+          <div key={g.siteLabel}>
+            {pendingGroups.length > 1 && (
+              <p className="helper-text">{g.siteLabel}:</p>
+            )}
+            <ul className="conflict-list">
+              {g.conflicts.map((c) => (
+                <li key={c.site_id}>
+                  {c.customer_name} — {c.site_name} ·{' '}
+                  {Number(c.distance_mi).toFixed(1)} mi · {verticalLabel(vertical)}
+                </li>
+              ))}
+            </ul>
+          </div>
+        ))}
+        <div className="row-actions">
+          <button
+            type="button"
+            className="btn-danger"
+            onClick={() => void confirmAdd()}
+          >
+            Add anyway
+          </button>
+          <button
+            ref={cancelConflictRef}
+            type="button"
+            className="btn-secondary"
+            onClick={cancelAdd}
+          >
+            Cancel
+          </button>
+        </div>
+      </dialog>
 
       {/* A11Y-003: the live regions are rendered unconditionally so screen
           readers observe them from first paint; only their CONTENT toggles. */}

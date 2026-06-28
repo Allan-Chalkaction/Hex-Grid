@@ -234,6 +234,21 @@ button.btn-danger {
   color: #b00020;
 }
 
+/* EX-T6 / AC-020: the warn-with-confirm conflict dialog (native <dialog>, reusing
+ * the W2 .confirm-dialog pattern) + its conflict list. Literal hex / rem scale. */
+.confirm-dialog {
+  max-width: 28rem;
+}
+
+.conflict-list {
+  margin: 0.5rem 0;
+  padding-left: 1.25rem;
+}
+
+.conflict-list li {
+  margin: 0.25rem 0;
+}
+
 .recovery {
   margin-top: 0.5rem;
   padding: 0.5rem;

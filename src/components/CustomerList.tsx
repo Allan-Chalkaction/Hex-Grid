@@ -11,7 +11,7 @@ import {
   VERTICAL_OPTIONS,
   type SiteGeo,
 } from '../lib/customers';
-import type { Conflict } from '../lib/conflicts';
+import { findConflicts, type Conflict } from '../lib/conflicts';
 
 /**
  * The locked per-site exclusivity-radius value set (EX-T4 / AC-018). "Off" → ""
@@ -374,6 +374,7 @@ function SiteRow({
   const latId = useId();
   const lngId = useId();
   const radiusId = useId();
+  const moveConflictHeadingId = useId();
   const [mode, setMode] = useState<'view' | 'edit-address' | 'move'>('view');
   const [address, setAddress] = useState(site.address ?? '');
   const [lat, setLat] = useState(site.lat != null ? String(site.lat) : '');
@@ -382,6 +383,18 @@ function SiteRow({
   const [error, setError] = useState<string | null>(null);
   const [note, setNote] = useState<string | null>(null);
   const firstFieldRef = useRef<HTMLInputElement>(null);
+
+  // EX-T6 / AC-017/AC-020: warn-with-confirm on MOVE. `moveChecking` drives the
+  // in-flight trigger; `moveConflicts` + `pendingMovePoint` hold the dialog data.
+  const [moveChecking, setMoveChecking] = useState(false);
+  const [moveConflicts, setMoveConflicts] = useState<Conflict[]>([]);
+  const [pendingMovePoint, setPendingMovePoint] = useState<{
+    lat: number;
+    lng: number;
+  } | null>(null);
+  const moveDialogRef = useRef<HTMLDialogElement>(null);
+  const saveMoveBtnRef = useRef<HTMLButtonElement>(null);
+  const cancelMoveConflictRef = useRef<HTMLButtonElement>(null);
 
   // EX-T4 / AC-018: the persistent (view-mode) per-site radius picker. Controlled
   // by radiusValue; "" = Off ⇒ null. On change it writes via updateSiteRadius
@@ -476,11 +489,42 @@ function SiteRow({
       );
       return;
     }
+    // EX-T6 / AC-017: conflict-check the NEW point BEFORE moving (self excluded
+    // via p_exclude_id). The site's own customer vertical + radius come from the
+    // site_geo row. Conflicts ⇒ warn dialog; no conflicts ⇒ move straight away.
+    setMoveChecking(true);
+    setError(null);
+    setNote(null);
+    try {
+      const conflicts = await findConflicts(
+        { lng: lngN, lat: latN },
+        site.exclusivity_radius_mi,
+        site.vertical,
+        site.id,
+      );
+      if (conflicts.length > 0) {
+        setMoveConflicts(conflicts);
+        setPendingMovePoint({ lat: latN, lng: lngN });
+        setMoveChecking(false);
+        moveDialogRef.current?.showModal();
+        cancelMoveConflictRef.current?.focus(); // default focus on Cancel
+        return;
+      }
+      setMoveChecking(false);
+      await persistMove({ lat: latN, lng: lngN });
+    } catch (err) {
+      setMoveChecking(false);
+      setError(err instanceof Error ? err.message : 'Could not check exclusivity.');
+    }
+  }
+
+  /** Persist the move (the W2 path). AC-024: the override always persists. */
+  async function persistMove(point: { lat: number; lng: number }) {
     setBusy(true);
     setError(null);
     setNote(null);
     try {
-      await updateSiteLocation(site.id, { lat: latN, lng: lngN });
+      await updateSiteLocation(site.id, point);
       setNote('Site moved.');
       setMode('view');
       onChanged();
@@ -489,6 +533,19 @@ function SiteRow({
     } finally {
       setBusy(false);
     }
+  }
+
+  // "Move anyway" — the non-blocking override.
+  async function confirmMove() {
+    moveDialogRef.current?.close();
+    if (pendingMovePoint) {
+      await persistMove(pendingMovePoint);
+    }
+  }
+
+  // "Cancel" — stay in move mode, write nothing.
+  function cancelMove() {
+    moveDialogRef.current?.close();
   }
 
   return (
@@ -623,12 +680,17 @@ function SiteRow({
             />
           </span>
           <button
+            ref={saveMoveBtnRef}
             type="button"
             className="btn-secondary"
-            disabled={busy}
+            disabled={busy || moveChecking}
             onClick={() => void saveMove()}
           >
-            {busy ? 'Saving…' : 'Save location'}
+            {moveChecking
+              ? 'Checking exclusivity…'
+              : busy
+                ? 'Saving…'
+                : 'Save location'}
           </button>
           <button
             type="button"
@@ -639,6 +701,47 @@ function SiteRow({
           </button>
         </span>
       )}
+
+      {/* EX-T6 / AC-017/AC-020/AC-023: warn-with-confirm conflict dialog on move.
+          Reuses the W2 A11Y-002 native <dialog>; default focus on Cancel; ESC =
+          Cancel = abort (stay in move mode); onClose refocuses Save location. */}
+      <dialog
+        ref={moveDialogRef}
+        className="confirm-dialog"
+        aria-labelledby={moveConflictHeadingId}
+        onClose={() => saveMoveBtnRef.current?.focus()}
+      >
+        <h2 id={moveConflictHeadingId}>Exclusivity conflict</h2>
+        <p>
+          This location falls within the exclusivity zone of same-vertical
+          site(s):
+        </p>
+        <ul className="conflict-list">
+          {moveConflicts.map((c) => (
+            <li key={c.site_id}>
+              {c.customer_name} — {c.site_name} ·{' '}
+              {Number(c.distance_mi).toFixed(1)} mi · {verticalLabel(site.vertical)}
+            </li>
+          ))}
+        </ul>
+        <div className="row-actions">
+          <button
+            type="button"
+            className="btn-danger"
+            onClick={() => void confirmMove()}
+          >
+            Move anyway
+          </button>
+          <button
+            ref={cancelMoveConflictRef}
+            type="button"
+            className="btn-secondary"
+            onClick={cancelMove}
+          >
+            Cancel
+          </button>
+        </div>
+      </dialog>
 
       {note && (
         <span className="helper-text" aria-live="polite">
