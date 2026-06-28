@@ -27,6 +27,13 @@ export interface SiteGeo {
   address: string | null;
   lat: number | null;
   lng: number | null;
+  // Wave 3 (EX-T1/EX-T2): the zone-render + conflict-key fields appended to the
+  // 0003 site_geo view. Additive — existing readers (sitePinsLayer) are
+  // unaffected. `vertical` is joined from the owning customer (the conflict key
+  // lives on customer, not site).
+  exclusivity_radius_mi: number | null;
+  is_zone_on: boolean;
+  vertical: string | null;
 }
 
 /** One site to create under a customer. `name` defaults to `address` if absent. */
@@ -206,6 +213,27 @@ export async function updateSiteAddress(
     status: result.point ? 'geocoded' : 'failed',
     reason: result.point ? null : result.reason,
   };
+}
+
+/**
+ * Set a site's exclusivity radius in miles (EX-T2 / AC-015). API-first PostgREST
+ * update on the `site` base table, RLS-scoped by `site_tenant_update` (0001).
+ * The radius picker's "Off" passes `null` — the locked off semantic (no zone,
+ * no circle; the site can still intrude a neighbor's zone). This is a pure
+ * radius write; conflict detection lives in the pure-reporting RPC seam
+ * (`conflicts.ts`), recomputed by the UI on data change.
+ */
+export async function updateSiteRadius(
+  siteId: string,
+  mi: number | null,
+): Promise<void> {
+  const { error } = await supabase
+    .from('site')
+    .update({ exclusivity_radius_mi: mi })
+    .eq('id', siteId);
+  if (error) {
+    throw new Error(error.message);
+  }
 }
 
 /**
