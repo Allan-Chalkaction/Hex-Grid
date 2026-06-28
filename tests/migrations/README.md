@@ -32,5 +32,28 @@ docker exec -i supabase_db_hex-grid psql -U postgres -v ON_ERROR_STOP=1 \
 A clean run prints the `OK (...)` notices and ends with `ROLLBACK`. Any failed assertion
 raises an exception; with `ON_ERROR_STOP=1` the command exits non-zero.
 
+## `vertical-backfill.sql`
+
+Proves migration `0003`'s **idempotent `customer.vertical` backfill** (AC-002):
+`update customer set vertical = attributes->>'vertical' where vertical is null and attributes ? 'vertical'`.
+
+This statement uses jsonb operators (`attributes ? 'vertical'`, `attributes->>'vertical'`) that
+the application suite (`npm test`, supabase-js/PostgREST) cannot express, and it fires only once at
+migration time, so — like `backfill-populated.sql` — it is tested here as raw SQL inside a single
+always-rolled-back transaction. It seeds three input shapes and asserts:
+- **(a)** a customer with `attributes.vertical` and a null column is backfilled;
+- **(b)** a customer with no `attributes.vertical` stays null;
+- **(c)** a manually-set `vertical` (≠ attributes) is NOT clobbered;
+- **(d)** a second run changes ZERO rows (idempotent).
+
+### Run
+
+```bash
+docker exec -i supabase_db_hex-grid psql -U postgres -v ON_ERROR_STOP=1 \
+  < tests/migrations/vertical-backfill.sql
+```
+
+Same contract: `OK (...)` notices then `ROLLBACK`; a failed assertion exits non-zero.
+
 > The container name `supabase_db_hex-grid` is the local Supabase Postgres container for
 > this project (`docker ps` to confirm).
