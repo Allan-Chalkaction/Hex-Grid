@@ -133,9 +133,19 @@ body,
 
 .field input,
 .field select,
-.field textarea {
+.field textarea,
+.radius-picker select {
   padding: 0.5rem;
   font-size: 1rem;
+}
+
+/* EX-T4 / AC-018: the per-site radius picker — an inline label+select that wraps
+ * naturally inside the existing .site-item flex row. Reuses the .field select
+ * padding above; the global :focus-visible outline is inherited. */
+.radius-picker {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
 }
 
 .field-inline {

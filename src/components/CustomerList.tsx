@@ -3,6 +3,7 @@ import { supabase } from '../lib/supabaseClient';
 import {
   updateSiteAddress,
   updateSiteLocation,
+  updateSiteRadius,
   updateCustomerVertical,
   deleteCustomer,
   isValidLatLng,
@@ -10,6 +11,21 @@ import {
   VERTICAL_OPTIONS,
   type SiteGeo,
 } from '../lib/customers';
+
+/**
+ * The locked per-site exclusivity-radius value set (EX-T4 / AC-018). "Off" → ""
+ * → null (the off semantic: no zone, no circle). The other values are miles
+ * written verbatim to site.exclusivity_radius_mi.
+ */
+const RADIUS_OPTIONS: ReadonlyArray<{ value: string; label: string }> = [
+  { value: '', label: 'Off (no zone)' },
+  { value: '0.5', label: '0.5 mi' },
+  { value: '1', label: '1 mi' },
+  { value: '1.5', label: '1.5 mi' },
+  { value: '2', label: '2 mi' },
+  { value: '2.5', label: '2.5 mi' },
+  { value: '3', label: '3 mi' },
+];
 
 /**
  * CRUD list (AC-015 / AC-020) — supersedes the read-only W1 site list.
@@ -337,6 +353,7 @@ function SiteRow({
   const addrId = useId();
   const latId = useId();
   const lngId = useId();
+  const radiusId = useId();
   const [mode, setMode] = useState<'view' | 'edit-address' | 'move'>('view');
   const [address, setAddress] = useState(site.address ?? '');
   const [lat, setLat] = useState(site.lat != null ? String(site.lat) : '');
@@ -345,6 +362,31 @@ function SiteRow({
   const [error, setError] = useState<string | null>(null);
   const [note, setNote] = useState<string | null>(null);
   const firstFieldRef = useRef<HTMLInputElement>(null);
+
+  // EX-T4 / AC-018: the persistent (view-mode) per-site radius picker. Controlled
+  // by radiusValue; "" = Off ⇒ null. On change it writes via updateSiteRadius
+  // then onChanged() so the map redraws/recolors. On error it reverts.
+  const [radiusValue, setRadiusValue] = useState(
+    site.exclusivity_radius_mi != null ? String(site.exclusivity_radius_mi) : '',
+  );
+  const [radiusBusy, setRadiusBusy] = useState(false);
+  const [radiusError, setRadiusError] = useState<string | null>(null);
+
+  async function onRadiusChange(next: string) {
+    const prev = radiusValue;
+    setRadiusValue(next);
+    setRadiusBusy(true);
+    setRadiusError(null);
+    try {
+      await updateSiteRadius(site.id, next === '' ? null : Number(next));
+      onChanged();
+    } catch (err) {
+      setRadiusValue(prev); // revert the picker to the last persisted value
+      setRadiusError(err instanceof Error ? err.message : 'Could not save radius.');
+    } finally {
+      setRadiusBusy(false);
+    }
+  }
 
   // A11Y-001: move focus to the first revealed input when entering an edit mode.
   useEffect(() => {
@@ -419,6 +461,33 @@ function SiteRow({
         </span>
         {located ? 'Located' : 'No location'}
       </span>
+
+      {/* EX-T4 / AC-018: persistent per-site zone-radius picker (native select). */}
+      <span className="radius-picker">
+        <label htmlFor={radiusId}>Zone radius</label>
+        <select
+          id={radiusId}
+          value={radiusValue}
+          disabled={radiusBusy}
+          onChange={(e) => void onRadiusChange(e.target.value)}
+        >
+          {RADIUS_OPTIONS.map((o) => (
+            <option key={o.value} value={o.value}>
+              {o.label}
+            </option>
+          ))}
+        </select>
+      </span>
+      {radiusBusy && (
+        <span className="helper-text" aria-live="polite">
+          Saving radius…
+        </span>
+      )}
+      {radiusError && (
+        <span role="alert" className="form-error">
+          {radiusError}
+        </span>
+      )}
 
       {mode === 'view' && (
         <span className="row-actions">
