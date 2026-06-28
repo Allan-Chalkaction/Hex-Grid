@@ -1,0 +1,264 @@
+import { supabase } from './supabaseClient';
+import { getActiveTenantId } from './tenant';
+import {
+  defaultGeocoder,
+  type Geocoder,
+  type GeocodeFailureReason,
+} from './geocoder';
+
+/**
+ * The manual-add write path (AC-009 / AC-021).
+ *
+ * `createCustomerWithSites` upserts the customer by `(tenant_id, name)`,
+ * geocodes EACH site through the `Geocoder` seam BEFORE persisting, and inserts
+ * each site via the `place_site` security-invoker RPC (the deterministic
+ * default persistence path — AC-021; the Edge Function geocodes ONLY).
+ *
+ * Client/CSV-supplied coordinates are NEVER trusted: only the address string is
+ * geocoded. A site whose address fails to geocode is persisted UN-geocoded and
+ * flagged (`status: 'failed'`), never silently dropped.
+ */
+
+/** A row in the `site_geo` view — the read shape for the map + list surfaces. */
+export interface SiteGeo {
+  id: string;
+  customer_id: string;
+  name: string;
+  address: string | null;
+  lat: number | null;
+  lng: number | null;
+}
+
+/** One site to create under a customer. `name` defaults to `address` if absent. */
+export interface SiteInput {
+  name?: string;
+  address: string;
+}
+
+export interface CreateCustomerInput {
+  customerName: string;
+  attributes?: Record<string, unknown>;
+  sites: SiteInput[];
+}
+
+/** Per-site outcome surfaced to the form for the geocode-status UI (AC-012). */
+export interface SiteOutcome {
+  name: string;
+  address: string;
+  status: 'geocoded' | 'failed';
+  reason: GeocodeFailureReason | null;
+  siteId: string | null;
+}
+
+export interface CreateCustomerResult {
+  customerId: string;
+  sites: SiteOutcome[];
+}
+
+/**
+ * Upsert a customer by `(tenant_id, name)` and return its id. Reused by the CSV
+ * import (CG-T5) to collapse duplicate brand names within a tenant to one row.
+ */
+export async function upsertCustomer(
+  name: string,
+  attributes: Record<string, unknown> = {},
+): Promise<string> {
+  const tenantId = await getActiveTenantId();
+  if (!tenantId) {
+    throw new Error('No active tenant — cannot create a customer.');
+  }
+
+  // Non-destructive dedup (CR-001): look the customer up by (tenant_id, name)
+  // first and INSERT only on a miss. The dedup path NEVER updates an existing
+  // customer's attributes — a caller that supplies none (e.g. the CSV import)
+  // must not clobber attributes a prior add already stored.
+  const existing = await supabase
+    .from('customer')
+    .select('id')
+    .eq('tenant_id', tenantId)
+    .eq('name', name)
+    .maybeSingle();
+  if (existing.error) {
+    throw new Error(existing.error.message);
+  }
+  if (existing.data) {
+    return existing.data.id as string;
+  }
+
+  const { data, error } = await supabase
+    .from('customer')
+    .insert({ tenant_id: tenantId, name, attributes })
+    .select('id')
+    .single();
+
+  if (error || !data) {
+    // A concurrent insert may have created the row between our lookup and our
+    // insert; fall back to the now-existing row rather than failing.
+    const retry = await supabase
+      .from('customer')
+      .select('id')
+      .eq('tenant_id', tenantId)
+      .eq('name', name)
+      .maybeSingle();
+    if (retry.data) {
+      return retry.data.id as string;
+    }
+    throw new Error(error?.message ?? 'Failed to upsert customer.');
+  }
+  return data.id as string;
+}
+
+/**
+ * WGS84 bounds check shared by the move / manual-coordinates recovery UIs and
+ * `updateSiteLocation` (CR-002 / SA-005): finite numbers with lat ∈ [-90, 90]
+ * and lng ∈ [-180, 180].
+ */
+export function isValidLatLng(lat: number, lng: number): boolean {
+  return (
+    Number.isFinite(lat) &&
+    Number.isFinite(lng) &&
+    lat >= -90 &&
+    lat <= 90 &&
+    lng >= -180 &&
+    lng <= 180
+  );
+}
+
+/**
+ * Persist one site under a customer via the `place_site` RPC. A null point
+ * persists the site un-geocoded (geog null). Returns the new site id.
+ */
+export async function placeSite(
+  customerId: string,
+  name: string,
+  address: string,
+  point: { lat: number; lng: number } | null,
+): Promise<string> {
+  const { data, error } = await supabase.rpc('place_site', {
+    p_customer_id: customerId,
+    p_name: name,
+    p_address: address,
+    p_lat: point ? point.lat : null,
+    p_lng: point ? point.lng : null,
+  });
+  if (error || !data) {
+    throw new Error(error?.message ?? 'Failed to persist site.');
+  }
+  return data as string;
+}
+
+/**
+ * Update a site's location (move-site, and the manual-coords recovery path for a
+ * failed geocode — AC-012/AC-015). API-first via PostgREST using EWKT; PostGIS
+ * accepts the EWKT string on the `geog` column. Passing a null point clears it.
+ */
+export async function updateSiteLocation(
+  siteId: string,
+  point: { lat: number; lng: number } | null,
+): Promise<void> {
+  // SA-005: validate inside the helper so it is safe regardless of caller —
+  // reject out-of-range / non-finite coords rather than building malformed EWKT.
+  if (point && !isValidLatLng(point.lat, point.lng)) {
+    throw new Error(
+      'Invalid coordinates: latitude must be -90 to 90 and longitude -180 to 180.',
+    );
+  }
+  const { error } = await supabase
+    .from('site')
+    .update({
+      geog: point ? `SRID=4326;POINT(${point.lng} ${point.lat})` : null,
+    })
+    .eq('id', siteId);
+  if (error) {
+    throw new Error(error.message);
+  }
+}
+
+export interface SiteUpdateOutcome {
+  status: 'geocoded' | 'failed';
+  reason: GeocodeFailureReason | null;
+}
+
+/**
+ * Edit a site's address: re-geocode the new address through the seam, then
+ * update the address + location (AC-015). API-first via PostgREST (EWKT). A
+ * failed re-geocode clears the location and is reported so the UI can flag it.
+ */
+export async function updateSiteAddress(
+  siteId: string,
+  address: string,
+  geocoder: Geocoder = defaultGeocoder,
+): Promise<SiteUpdateOutcome> {
+  const [result] = await geocoder.geocodeDetailed([address]);
+  const { error } = await supabase
+    .from('site')
+    .update({
+      address,
+      geog: result.point
+        ? `SRID=4326;POINT(${result.point.lng} ${result.point.lat})`
+        : null,
+    })
+    .eq('id', siteId);
+  if (error) {
+    throw new Error(error.message);
+  }
+  return {
+    status: result.point ? 'geocoded' : 'failed',
+    reason: result.point ? null : result.reason,
+  };
+}
+
+/**
+ * Delete a customer; the `site.customer_id` FK `on delete cascade` (0002)
+ * removes its sites in the database (AC-015).
+ */
+export async function deleteCustomer(customerId: string): Promise<void> {
+  const { error } = await supabase
+    .from('customer')
+    .delete()
+    .eq('id', customerId);
+  if (error) {
+    throw new Error(error.message);
+  }
+}
+
+/**
+ * Manual-add: upsert the customer, geocode every site (one batch call through
+ * the seam — the geocoder IS invoked per site, AC-009), then persist each site.
+ * Returns per-site outcomes for the status UI.
+ */
+export async function createCustomerWithSites(
+  input: CreateCustomerInput,
+  geocoder: Geocoder = defaultGeocoder,
+): Promise<CreateCustomerResult> {
+  const customerId = await upsertCustomer(
+    input.customerName,
+    input.attributes ?? {},
+  );
+
+  // site.name is NOT NULL (0001:34): default an absent name to the address.
+  const sites = input.sites.map((s) => ({
+    name: s.name && s.name.trim() ? s.name.trim() : s.address,
+    address: s.address,
+  }));
+
+  // Geocode the address STRING for every site BEFORE insert (AC-009). CSV/client
+  // lat/lng is never read here — only the address.
+  const geocoded = await geocoder.geocodeDetailed(sites.map((s) => s.address));
+
+  const outcomes: SiteOutcome[] = [];
+  for (let i = 0; i < sites.length; i++) {
+    const { name, address } = sites[i];
+    const g = geocoded[i];
+    const siteId = await placeSite(customerId, name, address, g.point);
+    outcomes.push({
+      name,
+      address,
+      status: g.point ? 'geocoded' : 'failed',
+      reason: g.point ? null : g.reason,
+      siteId,
+    });
+  }
+
+  return { customerId, sites: outcomes };
+}

@@ -51,18 +51,24 @@ body,
   top: 3rem;
   left: 1rem;
   z-index: 1;
-  width: 18rem;
+  /* M-5 (light fix): widen to 22rem and gap the stacked surfaces so the
+     inline lat/lng fields aren't cramped (full forms-into-dialog deferred). */
+  width: 22rem;
   max-height: 70vh;
   overflow: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
   padding: 0.5rem 1rem;
   background: rgba(255, 255, 255, 0.95);
   border: 1px solid #ddd;
   border-radius: 8px;
 }
 
-.site-list h2 {
-  margin-top: 0.5rem;
-  font-size: 1.1rem;
+/* M-7: the form submit buttons carry no .btn-* class; give them the same
+   pointer affordance as the classed buttons. */
+.site-panel button[type='submit'] {
+  cursor: pointer;
 }
 
 .auth-gate {
@@ -93,4 +99,190 @@ body,
 .form-error {
   color: #b00020;
   font-weight: 600;
+}
+
+/* ---------------------------------------------------------------------------
+ * Wave 2: customer add-form, CSV import, and CRUD-list surfaces.
+ * Plain semantic CSS (no Tailwind/tokens), following the W1 literals
+ * (#1a73e8 focus-ring, #b00020 error, #555 helper text).
+ * ------------------------------------------------------------------------- */
+
+.panel-section {
+  margin-bottom: 1rem;
+}
+
+.panel-section h2 {
+  margin-top: 0.5rem;
+  margin-bottom: 0.5rem;
+  font-size: 1.1rem;
+}
+
+.helper-text {
+  color: #555;
+  font-size: 0.875rem;
+  margin: 0.25rem 0;
+}
+
+/* Generic field group (the AuthGate `.field` is scoped under .auth-gate). */
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  margin-bottom: 1rem;
+}
+
+.field input,
+.field select,
+.field textarea {
+  padding: 0.5rem;
+  font-size: 1rem;
+}
+
+.field-inline {
+  display: flex;
+  gap: 0.5rem;
+  align-items: flex-end;
+}
+
+.site-rows {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  margin-bottom: 0.75rem;
+}
+
+.site-row {
+  border: 1px solid #ddd;
+  border-radius: 6px;
+  padding: 0.5rem;
+}
+
+.row-actions {
+  display: flex;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+button.btn-secondary,
+button.btn-danger {
+  padding: 0.5rem 0.6rem;
+  font-size: 0.875rem;
+  cursor: pointer;
+}
+
+button.btn-danger {
+  color: #b00020;
+}
+
+/* Per-site geocode status — never signalled by color alone: each state carries
+ * a word + a glyph in the markup, color is only reinforcement (AC-012/AC-020). */
+.geo-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.875rem;
+  font-weight: 600;
+}
+
+.geo-glyph {
+  font-style: normal;
+}
+
+.geo-status--pending {
+  color: #555;
+}
+
+.geo-status--ok {
+  color: #137333;
+}
+
+.geo-status--failed {
+  color: #b00020;
+}
+
+.recovery {
+  margin-top: 0.5rem;
+  padding: 0.5rem;
+  border: 1px solid #ddd;
+  border-radius: 6px;
+}
+
+.recovery .field {
+  margin-bottom: 0.5rem;
+}
+
+/* CSV-import per-row results report + progress. */
+.import-progress {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin: 0.5rem 0;
+}
+
+.import-progress progress {
+  flex: 1;
+}
+
+.report {
+  margin-top: 0.75rem;
+}
+
+.report-row {
+  display: flex;
+  gap: 0.5rem;
+  padding: 0.25rem 0;
+  border-bottom: 1px solid #ddd;
+  font-size: 0.9rem;
+}
+
+.report-row--created {
+  color: #137333;
+}
+
+.report-row--geocode-failed,
+.report-row--error {
+  color: #b00020;
+}
+
+/* M-2 / A11Y-007: split the shared #7a5b00 — a skipped duplicate is neutral
+   (muted #555), a missing required column is an error (#b00020). */
+.report-row--skipped-duplicate {
+  color: #555;
+}
+
+.report-row--missing-required-column {
+  color: #b00020;
+}
+
+.errors-actions {
+  display: flex;
+  gap: 0.5rem;
+  margin-top: 0.5rem;
+}
+
+/* CRUD list. */
+.customer-list .customer-item {
+  border-bottom: 1px solid #ddd;
+  padding: 0.5rem 0;
+}
+
+.customer-list .site-item {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.25rem 0 0.25rem 0.75rem;
+}
+
+.customer-list .site-item .site-name {
+  font-weight: 600;
+}
+
+/* AC-020 contrast: any link used as BODY TEXT on the new surfaces uses the
+ * darker #1558b0 (~5.9:1 on white, passes WCAG 2.2 AA text contrast >= 4.5:1)
+ * rather than the lighter #1a73e8 (which is the :focus-visible OUTLINE — a
+ * non-text UI component at 3:1, intentionally left as-is). */
+.app-link,
+.site-panel a {
+  color: #1558b0;
 }

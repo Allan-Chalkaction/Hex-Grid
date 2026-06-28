@@ -1,0 +1,45 @@
+{
+  "schema": "thin-manifest/1",
+  "slug": "customers-geocoding",
+  "run_dir": "docs/step-5-pipeline/2026-06-27/1450-ROADMAP-wave-2-customers-geocoding",
+  "track": "roadmap",
+  "chain": [
+    "research",
+    "decompose",
+    "author",
+    "self-qa",
+    "finalize"
+  ],
+  "status": "complete",
+  "steps": [
+    {
+      "phase": "research",
+      "status": "pending",
+      "note": null
+    },
+    {
+      "phase": "decompose",
+      "status": "pending",
+      "note": null
+    },
+    {
+      "phase": "author",
+      "status": "pending",
+      "note": null
+    },
+    {
+      "phase": "self-qa",
+      "status": "pending",
+      "note": null
+    },
+    {
+      "phase": "finalize",
+      "status": "pending",
+      "note": null
+    }
+  ],
+  "commit_sha": null,
+  "surface_required": false,
+  "created_at": "2026-06-27T20:11:02Z",
+  "updated_at": "2026-06-27T20:11:02Z"
+}
