@@ -210,6 +210,30 @@ button.btn-danger {
   color: #b00020;
 }
 
+/* EX-T5 / AC-022/AC-023: zone-status — the accessible, non-color-alone conflict
+ * signal in each SiteRow (word + glyph + color), cloned from .geo-status metrics.
+ * The map circle color + thicker conflict stroke are reinforcement only. Literal
+ * hex reused from the W2 palette. */
+.zone-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.875rem;
+  font-weight: 600;
+}
+
+.zone-status--off {
+  color: #555;
+}
+
+.zone-status--clear {
+  color: #137333;
+}
+
+.zone-status--conflict {
+  color: #b00020;
+}
+
 .recovery {
   margin-top: 0.5rem;
   padding: 0.5rem;

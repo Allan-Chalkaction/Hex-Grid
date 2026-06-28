@@ -11,6 +11,7 @@ import {
   VERTICAL_OPTIONS,
   type SiteGeo,
 } from '../lib/customers';
+import type { Conflict } from '../lib/conflicts';
 
 /**
  * The locked per-site exclusivity-radius value set (EX-T4 / AC-018). "Off" → ""
@@ -56,9 +57,13 @@ type LoadState =
 export function CustomerList({
   onChanged,
   reloadVersion,
+  conflictsBySite,
+  conflictsLoading,
 }: {
   onChanged: () => void;
   reloadVersion: number;
+  conflictsBySite: Map<string, Conflict[]>;
+  conflictsLoading: boolean;
 }) {
   const [state, setState] = useState<LoadState>({ status: 'loading' });
 
@@ -135,6 +140,8 @@ export function CustomerList({
                   customer={customer}
                   sites={sites}
                   onChanged={onChanged}
+                  conflictsBySite={conflictsBySite}
+                  conflictsLoading={conflictsLoading}
                 />
               </li>
             );
@@ -149,10 +156,14 @@ function CustomerRow({
   customer,
   sites,
   onChanged,
+  conflictsBySite,
+  conflictsLoading,
 }: {
   customer: Customer;
   sites: SiteGeo[];
   onChanged: () => void;
+  conflictsBySite: Map<string, Conflict[]>;
+  conflictsLoading: boolean;
 }) {
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -334,7 +345,12 @@ function CustomerRow({
         <ul>
           {sites.map((site) => (
             <li key={site.id}>
-              <SiteRow site={site} onChanged={onChanged} />
+              <SiteRow
+                site={site}
+                onChanged={onChanged}
+                conflicts={conflictsBySite.get(site.id) ?? []}
+                conflictsLoading={conflictsLoading}
+              />
             </li>
           ))}
         </ul>
@@ -346,9 +362,13 @@ function CustomerRow({
 function SiteRow({
   site,
   onChanged,
+  conflicts,
+  conflictsLoading,
 }: {
   site: SiteGeo;
   onChanged: () => void;
+  conflicts: Conflict[];
+  conflictsLoading: boolean;
 }) {
   const addrId = useId();
   const latId = useId();
@@ -396,6 +416,30 @@ function SiteRow({
   }, [mode]);
 
   const located = site.lat != null && site.lng != null;
+
+  // EX-T5 / AC-022/AC-023: the zone-status signal — word + glyph + color, the
+  // word being real SR-announced text (glyph aria-hidden). Conflict takes
+  // priority (an Off site can still be a Conflict if it intrudes a neighbor);
+  // a set+on zone with no conflict is "Exclusive"; otherwise "No zone". While
+  // the conflict pass runs, show a neutral "Checking…" (never a false Exclusive).
+  const radiusMi = site.exclusivity_radius_mi;
+  const conflictCount = conflicts.length;
+  let zoneClass = 'zone-status--off';
+  let zoneGlyph = '○';
+  let zoneWord = 'No zone';
+  if (conflictsLoading) {
+    zoneClass = 'zone-status--off';
+    zoneGlyph = '…';
+    zoneWord = 'Checking…';
+  } else if (conflictCount > 0) {
+    zoneClass = 'zone-status--conflict';
+    zoneGlyph = '⚠';
+    zoneWord = `Conflict (${conflictCount})`;
+  } else if (radiusMi != null && radiusMi > 0 && site.is_zone_on) {
+    zoneClass = 'zone-status--clear';
+    zoneGlyph = '✓';
+    zoneWord = `Exclusive ${radiusMi} mi`;
+  }
 
   async function saveAddress() {
     setBusy(true);
@@ -488,6 +532,23 @@ function SiteRow({
           {radiusError}
         </span>
       )}
+
+      {/* EX-T5 / AC-022: zone-status — the accessible, non-color-alone conflict
+          signal (word is real SR text; glyph aria-hidden). */}
+      <span className={`zone-status ${zoneClass}`} aria-live="polite">
+        <span className="geo-glyph" aria-hidden="true">
+          {zoneGlyph}
+        </span>
+        {zoneWord}
+      </span>
+      {!conflictsLoading &&
+        conflictCount > 0 &&
+        conflicts.map((c) => (
+          <span className="helper-text" key={c.site_id}>
+            Conflicts with {c.customer_name} — {c.site_name} (
+            {Number(c.distance_mi).toFixed(1)} mi).
+          </span>
+        ))}
 
       {mode === 'view' && (
         <span className="row-actions">

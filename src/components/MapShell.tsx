@@ -3,6 +3,7 @@ import maplibregl from 'maplibre-gl';
 import { MapboxOverlay } from '@deck.gl/mapbox';
 import 'maplibre-gl/dist/maplibre-gl.css';
 import { sitePinsLayer } from './sitePinsLayer';
+import { siteZonesLayer } from './siteZonesLayer';
 import type { SiteGeo } from '../lib/customers';
 
 /**
@@ -17,7 +18,13 @@ import type { SiteGeo } from '../lib/customers';
  * re-renders its pin without a full page reload. The empty placeholder overlay
  * from W1 is gone — pins come from the lifted `sites` state owned by `App`.
  */
-export function MapShell({ sites }: { sites: SiteGeo[] }) {
+export function MapShell({
+  sites,
+  conflictIds,
+}: {
+  sites: SiteGeo[];
+  conflictIds: Set<string>;
+}) {
   const containerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<maplibregl.Map | null>(null);
   const overlayRef = useRef<MapboxOverlay | null>(null);
@@ -36,10 +43,10 @@ export function MapShell({ sites }: { sites: SiteGeo[] }) {
     });
     mapRef.current = map;
 
-    // Created with an empty-DATA pin layer (not an empty `layers` array); the
-    // reactive effect below immediately populates it from `sites`.
+    // Created with empty-DATA layers (zones under pins; not an empty `layers`
+    // array); the reactive effect below immediately populates them from `sites`.
     const overlay = new MapboxOverlay({
-      layers: [sitePinsLayer([])],
+      layers: [siteZonesLayer([], new Set()), sitePinsLayer([])],
     });
     overlayRef.current = overlay;
     map.addControl(overlay);
@@ -51,10 +58,14 @@ export function MapShell({ sites }: { sites: SiteGeo[] }) {
     };
   }, []);
 
-  // Reactive layer refresh: rebuild the pin layer whenever `sites` changes.
+  // Reactive layer refresh: rebuild BOTH layers whenever `sites` or the derived
+  // `conflictIds` change (zones under pins; AC-021/AC-024 passive recolor). Never
+  // per frame — only on data change.
   useEffect(() => {
-    overlayRef.current?.setProps({ layers: [sitePinsLayer(sites)] });
-  }, [sites]);
+    overlayRef.current?.setProps({
+      layers: [siteZonesLayer(sites, conflictIds), sitePinsLayer(sites)],
+    });
+  }, [sites, conflictIds]);
 
   return (
     <div
