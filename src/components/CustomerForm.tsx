@@ -3,6 +3,7 @@ import {
   createCustomerWithSites,
   updateSiteLocation,
   isValidLatLng,
+  VERTICAL_OPTIONS,
   type SiteOutcome,
 } from '../lib/customers';
 import {
@@ -118,7 +119,9 @@ export function CustomerForm({ onChanged }: { onChanged: () => void }) {
     try {
       const result = await createCustomerWithSites({
         customerName: customerName.trim(),
-        attributes: vertical.trim() ? { vertical: vertical.trim() } : {},
+        // EX-T3 / AC-019: the vertical is written to the customer.vertical COLUMN
+        // (the conflict key), NOT to attributes. Empty option ⇒ null.
+        vertical: vertical || null,
         sites: filled.map((r) => ({
           name: r.name.trim() || undefined,
           address: r.address.trim(),
@@ -150,13 +153,21 @@ export function CustomerForm({ onChanged }: { onChanged: () => void }) {
           />
         </div>
         <div className="field">
-          <label htmlFor={verticalId}>Vertical (optional)</label>
-          <input
+          <label htmlFor={verticalId}>Vertical</label>
+          {/* EX-T3 / AC-019: a controlled native <select> (NOT free text) — string
+              equality on the token is the conflict key. Empty option ⇒ null. */}
+          <select
             id={verticalId}
-            type="text"
             value={vertical}
             onChange={(e) => setVertical(e.target.value)}
-          />
+          >
+            <option value="">Select vertical…</option>
+            {VERTICAL_OPTIONS.map((o) => (
+              <option key={o.value} value={o.value}>
+                {o.label}
+              </option>
+            ))}
+          </select>
         </div>
 
         <fieldset>

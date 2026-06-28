@@ -45,7 +45,40 @@ export interface SiteInput {
 export interface CreateCustomerInput {
   customerName: string;
   attributes?: Record<string, unknown>;
+  /**
+   * The customer's vertical token (EX-T3 / AC-019) — written to the
+   * `customer.vertical` COLUMN (the conflict key), NOT to `attributes`. `null` /
+   * omitted = no vertical (the explicit "Select vertical…" state).
+   */
+  vertical?: string | null;
   sites: SiteInput[];
+}
+
+/**
+ * The controlled customer-vertical value set (EX-T3 / AC-019). Lowercase tokens
+ * stored in `customer.vertical`; the label is the human-facing option text. A
+ * controlled list makes "two customers share a vertical" reliable (string
+ * equality is the conflict key); the column stays `text` so the list can grow
+ * without a migration.
+ */
+export const VERTICAL_OPTIONS: ReadonlyArray<{ value: string; label: string }> =
+  [
+    { value: 'gas', label: 'Gas / convenience' },
+    { value: 'grocery', label: 'Grocery' },
+    { value: 'pharmacy', label: 'Pharmacy' },
+    { value: 'qsr', label: 'Quick-service restaurant (QSR)' },
+    { value: 'fitness', label: 'Fitness' },
+    { value: 'automotive', label: 'Automotive' },
+    { value: 'banking', label: 'Banking' },
+    { value: 'hotel', label: 'Hotel / lodging' },
+  ];
+
+/** Human label for a stored vertical token (falls back to the raw token). */
+export function verticalLabel(token: string | null): string {
+  if (!token) {
+    return '';
+  }
+  return VERTICAL_OPTIONS.find((o) => o.value === token)?.label ?? token;
 }
 
 /** Per-site outcome surfaced to the form for the geocode-status UI (AC-012). */
@@ -69,6 +102,7 @@ export interface CreateCustomerResult {
 export async function upsertCustomer(
   name: string,
   attributes: Record<string, unknown> = {},
+  vertical: string | null = null,
 ): Promise<string> {
   const tenantId = await getActiveTenantId();
   if (!tenantId) {
@@ -77,8 +111,9 @@ export async function upsertCustomer(
 
   // Non-destructive dedup (CR-001): look the customer up by (tenant_id, name)
   // first and INSERT only on a miss. The dedup path NEVER updates an existing
-  // customer's attributes — a caller that supplies none (e.g. the CSV import)
-  // must not clobber attributes a prior add already stored.
+  // customer's attributes/vertical — a caller that supplies none (e.g. the CSV
+  // import) must not clobber a value a prior add already stored. To change an
+  // existing customer's vertical, use updateCustomerVertical (the edit path).
   const existing = await supabase
     .from('customer')
     .select('id')
@@ -94,7 +129,7 @@ export async function upsertCustomer(
 
   const { data, error } = await supabase
     .from('customer')
-    .insert({ tenant_id: tenantId, name, attributes })
+    .insert({ tenant_id: tenantId, name, attributes, vertical })
     .select('id')
     .single();
 
@@ -216,6 +251,25 @@ export async function updateSiteAddress(
 }
 
 /**
+ * Set an existing customer's vertical (EX-T3 / AC-019 — the edit path). API-first
+ * PostgREST update on the `customer` base table, RLS-scoped by
+ * `customer_tenant_update` (0002). The picker's empty "Select vertical…" option
+ * passes `null` (clears the vertical → the customer can no longer conflict).
+ */
+export async function updateCustomerVertical(
+  customerId: string,
+  vertical: string | null,
+): Promise<void> {
+  const { error } = await supabase
+    .from('customer')
+    .update({ vertical })
+    .eq('id', customerId);
+  if (error) {
+    throw new Error(error.message);
+  }
+}
+
+/**
  * Set a site's exclusivity radius in miles (EX-T2 / AC-015). API-first PostgREST
  * update on the `site` base table, RLS-scoped by `site_tenant_update` (0001).
  * The radius picker's "Off" passes `null` — the locked off semantic (no zone,
@@ -262,6 +316,7 @@ export async function createCustomerWithSites(
   const customerId = await upsertCustomer(
     input.customerName,
     input.attributes ?? {},
+    input.vertical ?? null,
   );
 
   // site.name is NOT NULL (0001:34): default an absent name to the address.

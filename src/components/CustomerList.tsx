@@ -3,8 +3,11 @@ import { supabase } from '../lib/supabaseClient';
 import {
   updateSiteAddress,
   updateSiteLocation,
+  updateCustomerVertical,
   deleteCustomer,
   isValidLatLng,
+  verticalLabel,
+  VERTICAL_OPTIONS,
   type SiteGeo,
 } from '../lib/customers';
 
@@ -26,6 +29,7 @@ import {
 interface Customer {
   id: string;
   name: string;
+  vertical: string | null;
 }
 
 type LoadState =
@@ -46,7 +50,7 @@ export function CustomerList({
     let cancelled = false;
     async function load() {
       const [customersRes, sitesRes] = await Promise.all([
-        supabase.from('customer').select('id, name').order('name'),
+        supabase.from('customer').select('id, name, vertical').order('name'),
         supabase.from('site_geo').select('*').order('name'),
       ]);
       if (cancelled) {
@@ -139,6 +143,36 @@ function CustomerRow({
   const dialogRef = useRef<HTMLDialogElement>(null);
   const deleteBtnRef = useRef<HTMLButtonElement>(null);
 
+  // EX-T3 / AC-019: the "Edit vertical" reveal — mirrors the SiteRow
+  // edit-address pattern (A11Y-001 focus-on-reveal). View shows the current
+  // vertical; editing reveals a controlled <select> + Save/Cancel.
+  const verticalId = useId();
+  const [vEditing, setVEditing] = useState(false);
+  const [vValue, setVValue] = useState(customer.vertical ?? '');
+  const [vBusy, setVBusy] = useState(false);
+  const [vError, setVError] = useState<string | null>(null);
+  const verticalSelectRef = useRef<HTMLSelectElement>(null);
+
+  useEffect(() => {
+    if (vEditing) {
+      verticalSelectRef.current?.focus();
+    }
+  }, [vEditing]);
+
+  async function saveVertical() {
+    setVBusy(true);
+    setVError(null);
+    try {
+      await updateCustomerVertical(customer.id, vValue || null);
+      setVEditing(false);
+      onChanged();
+    } catch (err) {
+      setVError(err instanceof Error ? err.message : 'Could not save vertical.');
+    } finally {
+      setVBusy(false);
+    }
+  }
+
   const siteCount = `${sites.length} site${sites.length === 1 ? '' : 's'}`;
 
   // A11Y-002 / M-6: a native <dialog> confirm replaces window.confirm — real
@@ -207,6 +241,77 @@ function CustomerRow({
           {error}
         </p>
       )}
+
+      {/* EX-T3 / AC-019: customer vertical — view + "Edit vertical" reveal. */}
+      {!vEditing ? (
+        <div className="row-actions">
+          {customer.vertical ? (
+            <span className="helper-text">
+              Vertical: {verticalLabel(customer.vertical)}
+            </span>
+          ) : (
+            <span className="helper-text">
+              No vertical set. Set a vertical to enable conflict detection.
+            </span>
+          )}
+          <button
+            type="button"
+            className="btn-secondary"
+            onClick={() => {
+              setVValue(customer.vertical ?? '');
+              setVError(null);
+              setVEditing(true);
+            }}
+          >
+            Edit vertical
+          </button>
+        </div>
+      ) : (
+        <div className="field-inline">
+          <span className="field">
+            <label htmlFor={verticalId}>Vertical</label>
+            <select
+              ref={verticalSelectRef}
+              id={verticalId}
+              value={vValue}
+              onChange={(e) => setVValue(e.target.value)}
+            >
+              <option value="">Select vertical…</option>
+              {VERTICAL_OPTIONS.map((o) => (
+                <option key={o.value} value={o.value}>
+                  {o.label}
+                </option>
+              ))}
+            </select>
+          </span>
+          <button
+            type="button"
+            className="btn-secondary"
+            disabled={vBusy}
+            onClick={() => void saveVertical()}
+          >
+            {vBusy ? 'Saving…' : 'Save'}
+          </button>
+          <button
+            type="button"
+            className="btn-secondary"
+            onClick={() => setVEditing(false)}
+          >
+            Cancel
+          </button>
+        </div>
+      )}
+      {vBusy && (
+        <p className="helper-text" aria-live="polite">
+          Saving vertical…
+        </p>
+      )}
+      {vError && (
+        <p role="alert" className="form-error">
+          {vError}
+        </p>
+      )}
+
       {sites.length === 0 ? (
         <p className="helper-text">No sites.</p>
       ) : (
