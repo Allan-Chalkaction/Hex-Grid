@@ -249,6 +249,13 @@ button.btn-danger {
   max-width: 28rem;
 }
 
+/* ui M1: the dialog <h2> sits outside .panel-section, so the 1.1rem type-scale
+ * rule does not reach it (UA would render ~1.5rem). Pin it onto the scale. */
+.confirm-dialog h2 {
+  font-size: 1.1rem;
+  margin: 0 0 0.5rem;
+}
+
 .conflict-list {
   margin: 0.5rem 0;
   padding-left: 1.25rem;

@@ -1,4 +1,5 @@
 import { supabase } from './supabaseClient';
+import { isValidLatLng } from './customers';
 
 /**
  * The exclusivity-conflict seam (EX-T2 / AC-013).
@@ -45,6 +46,13 @@ export async function findConflicts(
   excludeId: string | null,
   customerId: string | null,
 ): Promise<Conflict[]> {
+  // SA-001: guard the coordinates before building EWKT — reject out-of-range /
+  // non-finite points rather than constructing a malformed geography literal
+  // (mirrors the updateSiteLocation precedent, customers.ts). Not injectable
+  // (the value is a bound RPC param), but fail fast on bad input regardless.
+  if (!isValidLatLng(point.lat, point.lng)) {
+    throw new Error('Invalid coordinates');
+  }
   const { data, error } = await supabase.rpc('conflicts_at', {
     p_geog: `SRID=4326;POINT(${point.lng} ${point.lat})`,
     p_radius_mi: radiusMi,

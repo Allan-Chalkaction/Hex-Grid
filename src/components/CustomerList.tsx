@@ -175,6 +175,10 @@ function CustomerRow({
   const [busy, setBusy] = useState(false);
   const dialogRef = useRef<HTMLDialogElement>(null);
   const deleteBtnRef = useRef<HTMLButtonElement>(null);
+  // A11Y-001: an accessible name for the delete <dialog>. A11Y-002: default focus
+  // the Cancel (non-destructive) button on open.
+  const deleteHeadingId = useId();
+  const cancelDeleteRef = useRef<HTMLButtonElement>(null);
 
   // EX-T3 / AC-019: the "Edit vertical" reveal — mirrors the SiteRow
   // edit-address pattern (A11Y-001 focus-on-reveal). View shows the current
@@ -242,6 +246,9 @@ function CustomerRow({
   function requestDelete() {
     setError(null);
     dialogRef.current?.showModal();
+    // A11Y-002: focus Cancel (the safe choice) so a reflexive Enter never
+    // triggers an irreversible delete.
+    cancelDeleteRef.current?.focus();
   }
 
   async function confirmDelete() {
@@ -276,8 +283,10 @@ function CustomerRow({
       <dialog
         ref={dialogRef}
         className="confirm-dialog"
+        aria-labelledby={deleteHeadingId}
         onClose={() => deleteBtnRef.current?.focus()}
       >
+        <h2 id={deleteHeadingId}>Delete customer</h2>
         <p>
           Delete &ldquo;{customer.name}&rdquo;? This deletes {siteCount}.
         </p>
@@ -290,6 +299,7 @@ function CustomerRow({
             Delete customer
           </button>
           <button
+            ref={cancelDeleteRef}
             type="button"
             className="btn-secondary"
             onClick={() => dialogRef.current?.close()}
@@ -363,11 +373,11 @@ function CustomerRow({
           </button>
         </div>
       )}
-      {vBusy && (
-        <p className="helper-text" aria-live="polite">
-          Saving vertical…
-        </p>
-      )}
+      {/* A11Y-003: pre-seeded live region — rendered unconditionally so screen
+          readers observe it from first paint; only the content toggles. */}
+      <p className="helper-text" aria-live="polite">
+        {vBusy ? 'Saving vertical…' : ''}
+      </p>
       {vError && (
         <p role="alert" className="form-error">
           {vError}
@@ -427,11 +437,10 @@ function CustomerRow({
           </button>
         </div>
       )}
-      {scBusy && (
-        <p className="helper-text" aria-live="polite">
-          Saving scope…
-        </p>
-      )}
+      {/* A11Y-003: pre-seeded live region (mirrors the vertical save status). */}
+      <p className="helper-text" aria-live="polite">
+        {scBusy ? 'Saving scope…' : ''}
+      </p>
       {scError && (
         <p role="alert" className="form-error">
           {scError}
@@ -679,11 +688,10 @@ function SiteRow({
           ))}
         </select>
       </span>
-      {radiusBusy && (
-        <span className="helper-text" aria-live="polite">
-          Saving radius…
-        </span>
-      )}
+      {/* A11Y-003: pre-seeded live region — content toggles, container persists. */}
+      <span className="helper-text" aria-live="polite">
+        {radiusBusy ? 'Saving radius…' : ''}
+      </span>
       {radiusError && (
         <span role="alert" className="form-error">
           {radiusError}

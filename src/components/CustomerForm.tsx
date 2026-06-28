@@ -321,11 +321,11 @@ export function CustomerForm({ onChanged }: { onChanged: () => void }) {
               ? 'Adding & geocoding…'
               : 'Add customer'}
         </button>
-        {addNote && (
-          <p className="helper-text" aria-live="polite">
-            {addNote}
-          </p>
-        )}
+        {/* A11Y-003: pre-seeded live region — rendered unconditionally so screen
+            readers observe it from first paint; only the content toggles. */}
+        <p className="helper-text" aria-live="polite">
+          {addNote ?? ''}
+        </p>
       </form>
 
       {/* EX-T6 / AC-016/AC-020/AC-023: warn-with-confirm conflict dialog on add.

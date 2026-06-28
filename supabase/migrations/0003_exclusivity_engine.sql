@@ -33,6 +33,10 @@
 --            ST_X(geog::geometry) as lng            -- revert drops + recreates
 --     from site;                                    -- the ADR-002 shape.
 --   alter table customer drop column vertical;
+--   -- MR-001 DATA-LOSS CAVEAT: dropping customer.vertical is irreversible — any
+--   -- picker-set vertical NOT mirrored in attributes->>'vertical' is lost (the
+--   -- backfill seeded FROM attributes, it does not write BACK). Snapshot before
+--   -- reverting if those values matter.
 
 -- ---------------------------------------------------------------------------
 -- 1. customer.vertical: a typed, nullable column promoted out of the jsonb
