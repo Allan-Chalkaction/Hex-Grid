@@ -31,18 +31,26 @@ export interface Conflict {
  * (customers.ts:169) builds for the `geog` column. A null `vertical` or a
  * null/zero `radiusMi` never conflicts (the RPC predicate); `excludeId` excludes
  * a site from its own results on a move.
+ *
+ * EX-T7 / CR-001: `customerId` is the prospective customer's id — passed as
+ * `p_customer_id` so the 0004 predicate can suppress a brand's OWN sibling
+ * sites unless that customer opts in via `self_conflict`. A null `customerId`
+ * (a brand-new-customer add) behaves as cross-customer (correct — a brand-new
+ * customer has no existing same-customer sites).
  */
 export async function findConflicts(
   point: { lng: number; lat: number },
   radiusMi: number | null,
   vertical: string | null,
   excludeId: string | null,
+  customerId: string | null,
 ): Promise<Conflict[]> {
   const { data, error } = await supabase.rpc('conflicts_at', {
     p_geog: `SRID=4326;POINT(${point.lng} ${point.lat})`,
     p_radius_mi: radiusMi,
     p_vertical: vertical,
     p_exclude_id: excludeId,
+    p_customer_id: customerId,
   });
   if (error) {
     throw new Error(error.message);

@@ -154,6 +154,15 @@ body,
   align-items: flex-end;
 }
 
+/* EX-T7 / CR-001: the per-customer exclusivity-scope toggle — a native checkbox
+ * with its label inline. Reuses the field spacing idiom. */
+.field-checkbox {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 1rem;
+}
+
 .site-rows {
   display: flex;
   flex-direction: column;

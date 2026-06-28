@@ -51,6 +51,12 @@ export interface CreateCustomerInput {
    * omitted = no vertical (the explicit "Select vertical…" state).
    */
   vertical?: string | null;
+  /**
+   * Per-customer exclusivity scope (EX-T7 / CR-001). `false` (default) =
+   * competitor-only: a brand does NOT conflict with its own sites. `true` opts
+   * into same-brand territory protection. Written to `customer.self_conflict`.
+   */
+  selfConflict?: boolean;
   sites: SiteInput[];
 }
 
@@ -103,6 +109,7 @@ export async function upsertCustomer(
   name: string,
   attributes: Record<string, unknown> = {},
   vertical: string | null = null,
+  selfConflict: boolean = false,
 ): Promise<string> {
   const tenantId = await getActiveTenantId();
   if (!tenantId) {
@@ -129,7 +136,13 @@ export async function upsertCustomer(
 
   const { data, error } = await supabase
     .from('customer')
-    .insert({ tenant_id: tenantId, name, attributes, vertical })
+    .insert({
+      tenant_id: tenantId,
+      name,
+      attributes,
+      vertical,
+      self_conflict: selfConflict,
+    })
     .select('id')
     .single();
 
@@ -270,6 +283,26 @@ export async function updateCustomerVertical(
 }
 
 /**
+ * Set an existing customer's exclusivity scope (EX-T7 / CR-001 — the edit path).
+ * API-first PostgREST update on the `customer` base table, RLS-scoped by
+ * `customer_tenant_update` (0002). `false` = competitor-only (a brand does NOT
+ * conflict with its own sites); `true` = also protect this brand's own sites
+ * from each other.
+ */
+export async function updateCustomerSelfConflict(
+  customerId: string,
+  selfConflict: boolean,
+): Promise<void> {
+  const { error } = await supabase
+    .from('customer')
+    .update({ self_conflict: selfConflict })
+    .eq('id', customerId);
+  if (error) {
+    throw new Error(error.message);
+  }
+}
+
+/**
  * Set a site's exclusivity radius in miles (EX-T2 / AC-015). API-first PostgREST
  * update on the `site` base table, RLS-scoped by `site_tenant_update` (0001).
  * The radius picker's "Off" passes `null` — the locked off semantic (no zone,
@@ -317,6 +350,7 @@ export async function createCustomerWithSites(
     input.customerName,
     input.attributes ?? {},
     input.vertical ?? null,
+    input.selfConflict ?? false,
   );
 
   // site.name is NOT NULL (0001:34): default an absent name to the address.

@@ -57,8 +57,11 @@ describe.skipIf(!hasDb)('EX-T2 conflict seam + updateSiteRadius', () => {
   });
 
   // AC-013 — findSiteConflicts mechanism: site_conflicts returns typed rows.
+  // EX-T7 / CR-001: a same-customer pair, so opt into self_conflict=true to keep
+  // this exercising the typed-row shape (the competitor-only default suppresses
+  // same-customer pairs — covered in exclusivity.test.ts EX-T7).
   it('findSiteConflicts: site_conflicts returns the full typed Conflict row', async () => {
-    const cust = await seedCustomer(admin, user.tenantId, 'Seam Co', 'gas');
+    const cust = await seedCustomer(admin, user.tenantId, 'Seam Co', 'gas', true);
     const a = await seedSite(admin, user.tenantId, cust, 'Seam-A', ORIGIN.lat, ORIGIN.lng, {
       radiusMi: 1.0,
     });
@@ -92,6 +95,7 @@ describe.skipIf(!hasDb)('EX-T2 conflict seam + updateSiteRadius', () => {
       p_radius_mi: 1.0,
       p_vertical: null, // prospective null ⇒ empty regardless of proximity
       p_exclude_id: null,
+      p_customer_id: null, // EX-T7: 5-arg signature (0004)
     });
     expect(error).toBeNull();
     expect((data ?? []) as ConflictRow[]).toHaveLength(0);

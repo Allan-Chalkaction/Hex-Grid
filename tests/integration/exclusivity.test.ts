@@ -89,8 +89,11 @@ describe.skipIf(!hasDb)('EX-T1 exclusivity conflict RPCs', () => {
   });
 
   // AC-005 — site_conflicts returns the fully-typed conflict row.
+  // EX-T7 / CR-001: this asserts a SAME-customer pair conflicts, so the customer
+  // opts into same-brand protection (self_conflict=true). The competitor-only
+  // default (false) is exercised by the EX-T7 block below.
   it('AC-005: site_conflicts returns the typed row for a same-vertical pair', async () => {
-    const cust = await seedCustomer(admin, userA.tenantId, 'Wrapper Co', 'bakery');
+    const cust = await seedCustomer(admin, userA.tenantId, 'Wrapper Co', 'bakery', true);
     const a = await seedSite(admin, userA.tenantId, cust, 'WSite-A', ORIGIN.lat, ORIGIN.lng, {
       radiusMi: 1.0,
     });
@@ -125,6 +128,7 @@ describe.skipIf(!hasDb)('EX-T1 exclusivity conflict RPCs', () => {
       p_radius_mi: 0.5,
       p_vertical: 'gas',
       p_exclude_id: null,
+      p_customer_id: null, // EX-T7: brand-new add ⇒ cross-customer behavior
     });
     expect(empty.error).toBeNull();
     expect((empty.data ?? []) as ConflictRow[]).toHaveLength(0);
@@ -135,6 +139,7 @@ describe.skipIf(!hasDb)('EX-T1 exclusivity conflict RPCs', () => {
       p_radius_mi: 1.0,
       p_vertical: 'gas',
       p_exclude_id: null,
+      p_customer_id: null,
     });
     expect(one.error).toBeNull();
     expect((one.data ?? []) as ConflictRow[]).toHaveLength(1);
@@ -156,6 +161,7 @@ describe.skipIf(!hasDb)('EX-T1 exclusivity conflict RPCs', () => {
       p_radius_mi: 1.0,
       p_vertical: 'pharmacy',
       p_exclude_id: a,
+      p_customer_id: custP,
     });
     expect(viaAt.error).toBeNull();
     expect((viaAt.data ?? []) as ConflictRow[]).toHaveLength(0);
@@ -184,6 +190,7 @@ describe.skipIf(!hasDb)('EX-T1 exclusivity conflict RPCs', () => {
       p_radius_mi: 1.0,
       p_vertical: null,
       p_exclude_id: null,
+      p_customer_id: null,
     });
     expect(pNull.error).toBeNull();
     expect((pNull.data ?? []) as ConflictRow[]).toHaveLength(0);
@@ -215,7 +222,10 @@ describe.skipIf(!hasDb)('EX-T1 exclusivity conflict RPCs', () => {
     expect((bothOff.data ?? []) as ConflictRow[]).toHaveLength(0);
 
     // (0,2): an off site that sits inside an on-neighbor's 2 mi zone IS flagged.
-    const custHotel = await seedCustomer(admin, userA.tenantId, 'Hotel Co', 'hotel');
+    // EX-T7 / CR-001: same-customer pair, so opt into self_conflict to keep the
+    // intrusion-detection assertion (the both-off pair above stays default-false
+    // — it is empty by the radius guard regardless of scope).
+    const custHotel = await seedCustomer(admin, userA.tenantId, 'Hotel Co', 'hotel', true);
     const hub = { lat: 39.5, lng: -97.5 }; // distinct origin for the hotel scenario
     const offSite = await seedSite(admin, userA.tenantId, custHotel, 'HotelOff', hub.lat, hub.lng, {
       radiusMi: null,
@@ -231,7 +241,9 @@ describe.skipIf(!hasDb)('EX-T1 exclusivity conflict RPCs', () => {
 
   // AC-012 — tenant isolation + anon denial.
   it('AC-012: tenant A never sees tenant B sites; anon RPC denied', async () => {
-    const custA = await seedCustomer(admin, userA.tenantId, 'AutoA', 'automotive');
+    // EX-T7 / CR-001: AutoA's own neighbor (a2) must surface, so AutoA opts into
+    // same-brand protection; the isolation assertion (B never leaks) is unchanged.
+    const custA = await seedCustomer(admin, userA.tenantId, 'AutoA', 'automotive', true);
     const custB = await seedCustomer(admin, userB.tenantId, 'AutoB', 'automotive');
     const hub = { lat: 38.5, lng: -99.0 }; // distinct origin
     const a1 = await seedSite(admin, userA.tenantId, custA, 'AutoA1', hub.lat, hub.lng, {
@@ -259,6 +271,7 @@ describe.skipIf(!hasDb)('EX-T1 exclusivity conflict RPCs', () => {
       p_radius_mi: 1.0,
       p_vertical: 'automotive',
       p_exclude_id: null,
+      p_customer_id: null,
     });
     // Either a hard permission error, or (RLS-scoped) zero rows — never B's data.
     if (anonRes.error) {
@@ -266,5 +279,117 @@ describe.skipIf(!hasDb)('EX-T1 exclusivity conflict RPCs', () => {
     } else {
       expect((anonRes.data ?? []) as ConflictRow[]).toHaveLength(0);
     }
+  });
+});
+
+// EX-T7 — configurable per-customer exclusivity scope (CR-001). Default =
+// competitor-only (a brand does NOT conflict with its own sites); a per-customer
+// self_conflict toggle opts into same-brand territory protection. Cross-customer
+// same-vertical pairs always conflict regardless of either flag. Exercised over
+// the REAL local Supabase (migration 0004) as an AUTHENTICATED user.
+describe.skipIf(!hasDb)('EX-T7 configurable exclusivity scope (CR-001)', () => {
+  let admin: SupabaseClient;
+  let userA: TenantUser;
+  let cliA: SupabaseClient;
+
+  beforeAll(async () => {
+    admin = adminClient();
+    userA = await createTenantUser(admin, 'EX7A');
+    cliA = await signedInClient(userA);
+  });
+
+  afterAll(async () => {
+    await teardown(admin, [userA]);
+  });
+
+  // The same-customer, same-vertical, within-radius pair: the whole point of
+  // CR-001. With self_conflict=false (the default) it must NOT conflict in
+  // EITHER direction; flip the flag and the same pair conflicts.
+  it('same-customer pair: self_conflict=false ⇒ no conflict (both directions)', async () => {
+    const cust = await seedCustomer(admin, userA.tenantId, 'SelfOff Co', 'grocery', false);
+    const a = await seedSite(admin, userA.tenantId, cust, 'Off-A', ORIGIN.lat, ORIGIN.lng, {
+      radiusMi: 1.0,
+    });
+    const bPoint = destinationPoint(ORIGIN.lat, ORIGIN.lng, 0.5, 90); // well within 1 mi
+    const b = await seedSite(admin, userA.tenantId, cust, 'Off-B', bPoint.lat, bPoint.lng, {
+      radiusMi: 1.0,
+    });
+
+    // Direction 1: from A.
+    const fromA = await cliA.rpc('site_conflicts', { p_site_id: a });
+    expect(fromA.error).toBeNull();
+    expect((fromA.data ?? []) as ConflictRow[]).toHaveLength(0);
+
+    // Direction 2: from B.
+    const fromB = await cliA.rpc('site_conflicts', { p_site_id: b });
+    expect(fromB.error).toBeNull();
+    expect((fromB.data ?? []) as ConflictRow[]).toHaveLength(0);
+
+    // And the prospective primitive (add/move preview) with the customer's own id
+    // also suppresses its own sibling.
+    const viaAt = await cliA.rpc('conflicts_at', {
+      p_geog: ewkt(bPoint),
+      p_radius_mi: 1.0,
+      p_vertical: 'grocery',
+      p_exclude_id: b,
+      p_customer_id: cust,
+    });
+    expect(viaAt.error).toBeNull();
+    expect((viaAt.data ?? []) as ConflictRow[]).toHaveLength(0);
+  });
+
+  it('same-customer pair: self_conflict=true ⇒ conflict (both directions)', async () => {
+    const cust = await seedCustomer(admin, userA.tenantId, 'SelfOn Co', 'pharmacy', true);
+    const a = await seedSite(admin, userA.tenantId, cust, 'On-A', ORIGIN.lat, ORIGIN.lng, {
+      radiusMi: 1.0,
+    });
+    const bPoint = destinationPoint(ORIGIN.lat, ORIGIN.lng, 0.5, 90);
+    const b = await seedSite(admin, userA.tenantId, cust, 'On-B', bPoint.lat, bPoint.lng, {
+      radiusMi: 1.0,
+    });
+
+    const fromA = await cliA.rpc('site_conflicts', { p_site_id: a });
+    expect(fromA.error).toBeNull();
+    expect(((fromA.data ?? []) as ConflictRow[]).map((r) => r.site_id)).toContain(b);
+
+    const fromB = await cliA.rpc('site_conflicts', { p_site_id: b });
+    expect(fromB.error).toBeNull();
+    expect(((fromB.data ?? []) as ConflictRow[]).map((r) => r.site_id)).toContain(a);
+  });
+
+  // Cross-customer same-vertical always conflicts — regardless of EITHER
+  // customer's self_conflict flag (the flag governs SAME-customer pairs only).
+  it('cross-customer same-vertical ⇒ conflict regardless of either flag', async () => {
+    const hub = { lat: 40.0, lng: -96.0 }; // distinct origin for this scenario
+    // One opted-in, one default-off — neither flag should affect cross-customer.
+    const custX = await seedCustomer(admin, userA.tenantId, 'CrossX Co', 'qsr', true);
+    const custY = await seedCustomer(admin, userA.tenantId, 'CrossY Co', 'qsr', false);
+    const x = await seedSite(admin, userA.tenantId, custX, 'X1', hub.lat, hub.lng, {
+      radiusMi: 1.0,
+    });
+    const yPoint = destinationPoint(hub.lat, hub.lng, 0.5, 90);
+    const y = await seedSite(admin, userA.tenantId, custY, 'Y1', yPoint.lat, yPoint.lng, {
+      radiusMi: 1.0,
+    });
+
+    const fromX = await cliA.rpc('site_conflicts', { p_site_id: x });
+    expect(fromX.error).toBeNull();
+    expect(((fromX.data ?? []) as ConflictRow[]).map((r) => r.site_id)).toContain(y);
+
+    const fromY = await cliA.rpc('site_conflicts', { p_site_id: y });
+    expect(fromY.error).toBeNull();
+    expect(((fromY.data ?? []) as ConflictRow[]).map((r) => r.site_id)).toContain(x);
+
+    // Prospective add of a brand-new qsr customer (p_customer_id null) at X's
+    // point also sees X (cross-customer) — the brand-new-add path.
+    const viaAt = await cliA.rpc('conflicts_at', {
+      p_geog: ewkt(hub),
+      p_radius_mi: 1.0,
+      p_vertical: 'qsr',
+      p_exclude_id: null,
+      p_customer_id: null,
+    });
+    expect(viaAt.error).toBeNull();
+    expect(((viaAt.data ?? []) as ConflictRow[]).map((r) => r.site_id)).toContain(x);
   });
 });

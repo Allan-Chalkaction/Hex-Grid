@@ -5,6 +5,7 @@ import {
   updateSiteLocation,
   updateSiteRadius,
   updateCustomerVertical,
+  updateCustomerSelfConflict,
   deleteCustomer,
   isValidLatLng,
   verticalLabel,
@@ -47,6 +48,8 @@ interface Customer {
   id: string;
   name: string;
   vertical: string | null;
+  // EX-T7 / CR-001: per-customer exclusivity scope. false = competitor-only.
+  self_conflict: boolean;
 }
 
 type LoadState =
@@ -71,7 +74,10 @@ export function CustomerList({
     let cancelled = false;
     async function load() {
       const [customersRes, sitesRes] = await Promise.all([
-        supabase.from('customer').select('id, name, vertical').order('name'),
+        supabase
+          .from('customer')
+          .select('id, name, vertical, self_conflict')
+          .order('name'),
         supabase.from('site_geo').select('*').order('name'),
       ]);
       if (cancelled) {
@@ -180,11 +186,40 @@ function CustomerRow({
   const [vError, setVError] = useState<string | null>(null);
   const verticalSelectRef = useRef<HTMLSelectElement>(null);
 
+  // EX-T7 / CR-001: the "Edit scope" reveal — mirrors the vertical edit pattern.
+  // View shows the current scope; editing reveals a native checkbox + Save/Cancel.
+  const selfConflictId = useId();
+  const [scEditing, setScEditing] = useState(false);
+  const [scValue, setScValue] = useState(customer.self_conflict);
+  const [scBusy, setScBusy] = useState(false);
+  const [scError, setScError] = useState<string | null>(null);
+  const selfConflictRef = useRef<HTMLInputElement>(null);
+
   useEffect(() => {
     if (vEditing) {
       verticalSelectRef.current?.focus();
     }
   }, [vEditing]);
+
+  useEffect(() => {
+    if (scEditing) {
+      selfConflictRef.current?.focus();
+    }
+  }, [scEditing]);
+
+  async function saveSelfConflict() {
+    setScBusy(true);
+    setScError(null);
+    try {
+      await updateCustomerSelfConflict(customer.id, scValue);
+      setScEditing(false);
+      onChanged();
+    } catch (err) {
+      setScError(err instanceof Error ? err.message : 'Could not save scope.');
+    } finally {
+      setScBusy(false);
+    }
+  }
 
   async function saveVertical() {
     setVBusy(true);
@@ -336,6 +371,70 @@ function CustomerRow({
       {vError && (
         <p role="alert" className="form-error">
           {vError}
+        </p>
+      )}
+
+      {/* EX-T7 / CR-001: per-customer exclusivity scope — view + "Edit scope"
+          reveal. Default competitor-only (self_conflict false). */}
+      {!scEditing ? (
+        <div className="row-actions">
+          <span className="helper-text">
+            Scope:{' '}
+            {customer.self_conflict
+              ? 'protects this brand’s own sites from each other'
+              : 'competitor-only (own sites do not conflict)'}
+          </span>
+          <button
+            type="button"
+            className="btn-secondary"
+            onClick={() => {
+              setScValue(customer.self_conflict);
+              setScError(null);
+              setScEditing(true);
+            }}
+          >
+            Edit scope
+          </button>
+        </div>
+      ) : (
+        <div className="field-inline">
+          <span className="field-checkbox">
+            <input
+              ref={selfConflictRef}
+              id={selfConflictId}
+              type="checkbox"
+              checked={scValue}
+              onChange={(e) => setScValue(e.target.checked)}
+            />
+            <label htmlFor={selfConflictId}>
+              Also protect this brand’s own sites from each other
+            </label>
+          </span>
+          <button
+            type="button"
+            className="btn-secondary"
+            disabled={scBusy}
+            onClick={() => void saveSelfConflict()}
+          >
+            {scBusy ? 'Saving…' : 'Save'}
+          </button>
+          <button
+            type="button"
+            className="btn-secondary"
+            onClick={() => setScEditing(false)}
+          >
+            Cancel
+          </button>
+        </div>
+      )}
+      {scBusy && (
+        <p className="helper-text" aria-live="polite">
+          Saving scope…
+        </p>
+      )}
+      {scError && (
+        <p role="alert" className="form-error">
+          {scError}
         </p>
       )}
 
@@ -501,6 +600,7 @@ function SiteRow({
         site.exclusivity_radius_mi,
         site.vertical,
         site.id,
+        site.customer_id,
       );
       if (conflicts.length > 0) {
         setMoveConflicts(conflicts);

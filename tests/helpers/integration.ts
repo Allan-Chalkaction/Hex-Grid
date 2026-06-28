@@ -76,15 +76,22 @@ export async function createTenantUser(
  * Seed one customer (service-role) and return its id. The optional `vertical`
  * (Wave 3, EX-T1) writes the new `customer.vertical` column directly — the
  * conflict key used by the `conflicts_at` / `site_conflicts` RPCs.
+ *
+ * `selfConflict` (Wave 3, EX-T7 / CR-001) writes `customer.self_conflict`:
+ * `false` (the DB default) = competitor-only (a brand does NOT conflict with its
+ * own sites); `true` = also protect this brand's own sites from each other.
+ * Omitted ⇒ the column default (false) applies.
  */
 export async function seedCustomer(
   admin: SupabaseClient,
   tenantId: string,
   name: string,
   vertical?: string | null,
+  selfConflict?: boolean,
 ): Promise<string> {
   const row: Record<string, unknown> = { tenant_id: tenantId, name };
   if (vertical !== undefined) row.vertical = vertical;
+  if (selfConflict !== undefined) row.self_conflict = selfConflict;
   const { data, error } = await admin
     .from('customer')
     .insert(row)

@@ -86,10 +86,14 @@ function reasonLabel(reason: GeocodeFailureReason | null): string {
 export function CustomerForm({ onChanged }: { onChanged: () => void }) {
   const nameId = useId();
   const verticalId = useId();
+  const selfConflictId = useId();
   const conflictHeadingId = useId();
 
   const [customerName, setCustomerName] = useState('');
   const [vertical, setVertical] = useState('');
+  // EX-T7 / CR-001: per-customer exclusivity scope. Default unchecked (false) =
+  // competitor-only (a brand does NOT conflict with its own sites).
+  const [selfConflict, setSelfConflict] = useState(false);
   const [rows, setRows] = useState<SiteRow[]>([newSiteRow()]);
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
@@ -133,6 +137,8 @@ export function CustomerForm({ onChanged }: { onChanged: () => void }) {
         // EX-T3 / AC-019: the vertical is written to the customer.vertical COLUMN
         // (the conflict key), NOT to attributes. Empty option ⇒ null.
         vertical: vertical || null,
+        // EX-T7 / CR-001: per-customer exclusivity scope.
+        selfConflict,
         sites: filled.map((r) => ({
           name: r.name.trim() || undefined,
           address: r.address.trim(),
@@ -185,6 +191,9 @@ export function CustomerForm({ onChanged }: { onChanged: () => void }) {
           { lng: pt.lng, lat: pt.lat },
           null,
           vertical || null,
+          null,
+          // EX-T7 / CR-001: a brand-new-customer add has no existing same-customer
+          // sites, so pass null (behaves as cross-customer — correct).
           null,
         );
         if (conflicts.length > 0) {
@@ -260,6 +269,20 @@ export function CustomerForm({ onChanged }: { onChanged: () => void }) {
               </option>
             ))}
           </select>
+        </div>
+
+        {/* EX-T7 / CR-001: per-customer exclusivity scope. Default unchecked =
+            competitor-only (a brand does NOT conflict with its own sites). */}
+        <div className="field-checkbox">
+          <input
+            id={selfConflictId}
+            type="checkbox"
+            checked={selfConflict}
+            onChange={(e) => setSelfConflict(e.target.checked)}
+          />
+          <label htmlFor={selfConflictId}>
+            Also protect this brand’s own sites from each other
+          </label>
         </div>
 
         <fieldset>
