@@ -1,8 +1,11 @@
 import { describe, it, expect, vi, afterEach } from 'vitest';
+import { readFileSync } from 'node:fs';
+import { fileURLToPath } from 'node:url';
 import type maplibregl from 'maplibre-gl';
 import {
   zctaConfigured,
   zctaTilesUrl,
+  zctaSourceLabel,
   resolveZcta5,
   addZctaSource,
   setZctaVisible,
@@ -56,6 +59,34 @@ describe('zctaConfigured / zctaTilesUrl (RO-T4 / AC-012/013)', () => {
     vi.stubEnv('VITE_ZCTA_TILES_URL', 'https://tiles.example.com/zcta.json');
     expect(zctaConfigured()).toBe(true);
     expect(zctaTilesUrl()).toBe('https://tiles.example.com/zcta.json');
+  });
+});
+
+describe('zctaSourceLabel (EH-T3 / AC-009)', () => {
+  it('returns the honest default "ZCTA approximation" when unset', () => {
+    expect(zctaSourceLabel()).toBe('ZCTA approximation');
+  });
+
+  it('returns VITE_ZCTA_SOURCE_LABEL when set (e.g. a true-USPS tileset)', () => {
+    vi.stubEnv('VITE_ZCTA_SOURCE_LABEL', 'USPS ZIP');
+    expect(zctaSourceLabel()).toBe('USPS ZIP');
+  });
+});
+
+describe('SaturationPanel toggle consumes zctaSourceLabel (EH-T3 / AC-010)', () => {
+  const src = readFileSync(
+    fileURLToPath(new URL('./SaturationPanel.tsx', import.meta.url)),
+    'utf8',
+  );
+
+  it('the ZIP toggle label calls the helper (not a hardcoded source string)', () => {
+    expect(src).toContain('zctaSourceLabel()');
+    expect(src).not.toContain('ZIP / ZCTA boundaries');
+  });
+
+  it('preserves the htmlFor / aria-describedby wiring (a11y unchanged)', () => {
+    expect(src).toContain('htmlFor={zctaId}');
+    expect(src).toContain('aria-describedby');
   });
 });
 
