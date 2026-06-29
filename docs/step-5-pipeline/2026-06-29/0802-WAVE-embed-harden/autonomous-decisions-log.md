@@ -1,0 +1,3 @@
+# Autonomous Decisions Log — Wave 6 (embed-harden, parent-agnostic)
+Basis: ADR-105. Gates: architect SOUND · code-reviewer APPROVE · spec-conformance CONFORMS (15/15) · security-auditor PASS (critical trust-boundary check PASS) · accessibility-auditor PASS. **No APPLY findings — cleanest wave; NO remediation pass.** All findings are nits/informational (CR-001 DISMISS; 5 informational notes). No forks, no halt.
+DEFER (carried — the deferred parent-binding wave): real parent auth provider impl; final API-contract negotiation; ZCTA/USPS tileset provisioning — triggered when the parent-app integration is actually scoped.

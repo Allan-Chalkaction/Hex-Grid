@@ -1,0 +1,2 @@
+# Accessibility Audit — Wave 6 · WCAG 2.2 AA · Verdict: PASS (zero findings)
+MapShell aria-label "Map of the United States" = accuracy correction (AK/HI pannable), role=application preserved (WCAG 4.1.2). SaturationPanel ZIP label consumes zctaSourceLabel() — all associations intact (htmlFor/id, native disabled not aria-disabled, aria-describedby note). AuthGate Session→AppSession is type-only erasure, zero DOM change; login a11y contract unchanged. W3/W4/W5 a11y contract confirmed intact.

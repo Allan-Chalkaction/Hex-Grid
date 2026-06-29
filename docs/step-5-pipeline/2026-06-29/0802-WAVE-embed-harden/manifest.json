@@ -1,0 +1,109 @@
+{
+  "schema": "thin-manifest/1",
+  "slug": "embed-harden",
+  "run_dir": "docs/step-5-pipeline/2026-06-29/0802-WAVE-embed-harden",
+  "track": "orchestrated",
+  "chain": [
+    "cto",
+    "architect-pre",
+    "spec",
+    "decompose",
+    "explore",
+    "implement",
+    "integrate",
+    "gate"
+  ],
+  "status": "complete",
+  "steps": [
+    {
+      "phase": "implement",
+      "status": "running",
+      "note": "building EH-T4"
+    }
+  ],
+  "commit_sha": null,
+  "surface_required": false,
+  "created_at": "2026-06-29T13:15:41Z",
+  "updated_at": "2026-06-29T13:30:34Z",
+  "tickets": [
+    {
+      "key": "EH-T1",
+      "title": "Identity/Tenant provider seam (supabase-js-free interfaces + configureIdentity + delegators)",
+      "status": "complete",
+      "depends_on": [],
+      "commit_sha": "a8cda9e",
+      "planned_files": [
+        "src/lib/providers.ts",
+        "src/lib/auth.ts",
+        "src/lib/tenant.ts",
+        "src/components/AuthGate.tsx",
+        "src/lib/providers.test.ts"
+      ],
+      "acceptance": [
+        "AC-001",
+        "AC-002",
+        "AC-003",
+        "AC-004",
+        "AC-005",
+        "AC-006",
+        "AC-007",
+        "AC-014",
+        "AC-015"
+      ],
+      "note": null
+    },
+    {
+      "key": "EH-T2",
+      "title": "Public API surface \u2014 src/lib/index.ts barrel + docs/embed-contract.md",
+      "status": "complete",
+      "depends_on": [
+        "EH-T1"
+      ],
+      "commit_sha": "66b7ec1",
+      "planned_files": [
+        "src/lib/index.ts",
+        "src/lib/index.test.ts",
+        "docs/embed-contract.md"
+      ],
+      "acceptance": [
+        "AC-008",
+        "AC-013"
+      ],
+      "note": null
+    },
+    {
+      "key": "EH-T3",
+      "title": "ZCTA source-kind label \u2014 zctaSourceLabel() helper + env decl + toggle label",
+      "status": "complete",
+      "depends_on": [],
+      "commit_sha": "c5bd0bb",
+      "planned_files": [
+        "src/components/zctaSource.ts",
+        "src/components/SaturationPanel.tsx",
+        "src/vite-env.d.ts",
+        "src/components/zctaSource.test.ts"
+      ],
+      "acceptance": [
+        "AC-009",
+        "AC-010",
+        "AC-011"
+      ],
+      "note": null
+    },
+    {
+      "key": "EH-T4",
+      "title": "AK/HI honesty \u2014 MapShell aria-label continental->United States",
+      "status": "complete",
+      "depends_on": [],
+      "commit_sha": "dfcf977",
+      "planned_files": [
+        "src/components/MapShell.tsx"
+      ],
+      "acceptance": [
+        "AC-012"
+      ],
+      "note": null
+    }
+  ],
+  "current_ticket": "EH-T4"
+}

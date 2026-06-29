@@ -1,0 +1,5 @@
+# Performance Review — Wave 4 · Verdict: HAS_ISSUES (perf GATE PASSES; none blocking; _criterion_match_:none)
+The named risk (per-viewport H3 compute) is correctly bounded: AC-010 zoom→res clamp, AC-011 HARD cell-cap rejects CONUS-scale bbox PRE-tessellation (estimateCandidatecells), AC-012 single debounced(200ms) moveend + deferred/cancellable recompute (never per-frame), AC-013 bbox+vertical pre-filter before inner loop, AC-014 updateTriggers keyed. Inner cost O(cells × zonesInViewport), no hidden quadratic. PASS within <10k-site envelope (server-side tripwire documented beyond).
+- PR-001 (WARN, DEFER) h3-js (~150kB gz) eager-loaded for an opt-in feature; bundle un-code-split (651kB gz). Lazy-load coverage.ts + layers behind first vertical selection. Author discretion (no perf budget).
+- PR-002 (SUGGEST, APPLY-cheap) rankOpenCells runs even when showProspecting off (default) — gate it.
+- PR-003 (SUGGEST, APPLY-cheap) redundant coverage>=1 re-filter in saturationLayer (producer already guarantees).

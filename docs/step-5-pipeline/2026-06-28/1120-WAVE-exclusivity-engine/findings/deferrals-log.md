@@ -1,0 +1,7 @@
+DEFER PR-001+PR-002 → standalone (perf): replace App's N-call whole-tenant conflict pass with one set-returning tenant_conflicts() RPC carrying a CONSTANT 3mi GIST pre-filter (picker max) + the exact GREATEST recheck; collapses O(N²)+N round-trips → 1 index-driven call. ADR-anticipated; wave-scale (hundreds) fine now. [found_by=performance-reviewer,code-reviewer, at=2026-06-28]
+DEFER spec-scale → correct spec.md "acceptable to ~10k sites/tenant" to "hundreds" (ADR bound); "low thousands" once PR-001/002 land. [found_by=performance-reviewer, at=2026-06-28]
+DEFER AC-016/AC-017 → standalone: add an RTL/jsdom component-test harness + add-flow test (findConflicts before persist; dialog gates; Cancel writes nothing) + move-flow test (self-exclusion; Cancel no write). Wiring verified by grep + RPC tests; only component coverage missing. [found_by=spec-conformance, at=2026-06-28]
+DEFER SA-002 → map raw PostgREST error.message to a generic UI message + log detail (conflicts.ts + W2 seam). [found_by=security-auditor, at=2026-06-28]
+DEFER ui-L2 → conflict neighbor-detail "below the row" full-width wrapper (CustomerList:601-608). [found_by=ui-review, at=2026-06-28]
+DEFER arch-low → move-path preview fold is_zone_on into prospective radius (latent; is_zone_on defaults true, no W3 control). [found_by=architect-review, at=2026-06-28]
+DEFER a11y-tooling → add eslint-plugin-jsx-a11y (open since W2). [found_by=accessibility-auditor, at=2026-06-28]

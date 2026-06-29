@@ -1,0 +1,260 @@
+{
+  "schema": "thin-manifest/1",
+  "slug": "customers-geocoding",
+  "run_dir": "docs/step-5-pipeline/2026-06-27/1520-WAVE-customers-geocoding",
+  "track": "orchestrated",
+  "chain": [
+    "cto",
+    "architect-pre",
+    "spec",
+    "ui-spec",
+    "decompose",
+    "explore",
+    "implement",
+    "integrate",
+    "gate"
+  ],
+  "status": "complete",
+  "steps": [
+    {
+      "phase": "cto",
+      "status": "complete",
+      "note": null
+    },
+    {
+      "phase": "architect-pre",
+      "status": "complete",
+      "note": null
+    },
+    {
+      "phase": "spec",
+      "status": "complete",
+      "note": null
+    },
+    {
+      "phase": "ui-spec",
+      "status": "complete",
+      "note": null
+    },
+    {
+      "phase": "decompose",
+      "status": "complete",
+      "note": null
+    },
+    {
+      "phase": "explore",
+      "status": "complete",
+      "note": null
+    },
+    {
+      "phase": "implement",
+      "status": "complete",
+      "note": null
+    },
+    {
+      "phase": "integrate",
+      "status": "complete",
+      "note": null
+    },
+    {
+      "phase": "gate",
+      "status": "complete",
+      "note": null
+    }
+  ],
+  "commit_sha": "03d205b",
+  "surface_required": false,
+  "created_at": "2026-06-27T20:20:00Z",
+  "updated_at": "2026-06-28T16:48:26Z",
+  "tickets": [
+    {
+      "key": "CG-T1",
+      "title": "CG-T1",
+      "status": "complete",
+      "depends_on": [],
+      "commit_sha": null,
+      "planned_files": [
+        "supabase/migrations/0002_customers_geocoding.sql"
+      ],
+      "acceptance": [
+        "AC-001",
+        "AC-002",
+        "AC-003",
+        "AC-004",
+        "AC-005",
+        "AC-018"
+      ],
+      "note": null
+    },
+    {
+      "key": "CG-T2",
+      "title": "CG-T2",
+      "status": "complete",
+      "depends_on": [],
+      "commit_sha": null,
+      "planned_files": [
+        "supabase/functions/geocode/index.ts"
+      ],
+      "acceptance": [
+        "AC-007",
+        "AC-008",
+        "AC-016"
+      ],
+      "note": null
+    },
+    {
+      "key": "CG-T3",
+      "title": "CG-T3",
+      "status": "complete",
+      "depends_on": [
+        "CG-T2"
+      ],
+      "commit_sha": null,
+      "planned_files": [
+        "src/lib/geocoder.ts"
+      ],
+      "acceptance": [
+        "AC-006"
+      ],
+      "note": null
+    },
+    {
+      "key": "CG-T4",
+      "title": "CG-T4",
+      "status": "complete",
+      "depends_on": [
+        "CG-T1",
+        "CG-T3"
+      ],
+      "commit_sha": null,
+      "planned_files": [
+        "src/lib/customers.ts",
+        "supabase/migrations/0002_customers_geocoding.sql"
+      ],
+      "acceptance": [
+        "AC-009",
+        "AC-021"
+      ],
+      "note": null
+    },
+    {
+      "key": "CG-T5",
+      "title": "CG-T5",
+      "status": "complete",
+      "depends_on": [
+        "CG-T4",
+        "CG-T6"
+      ],
+      "commit_sha": null,
+      "planned_files": [
+        "src/lib/csvImport.ts",
+        "src/components/CustomerImport.tsx",
+        "package.json"
+      ],
+      "acceptance": [
+        "AC-009",
+        "AC-013",
+        "AC-014",
+        "AC-017",
+        "AC-019"
+      ],
+      "note": null
+    },
+    {
+      "key": "CG-T6",
+      "title": "CG-T6",
+      "status": "complete",
+      "depends_on": [
+        "CG-T4"
+      ],
+      "commit_sha": null,
+      "planned_files": [
+        "src/components/CustomerForm.tsx",
+        "src/index.css"
+      ],
+      "acceptance": [
+        "AC-011",
+        "AC-012"
+      ],
+      "note": null
+    },
+    {
+      "key": "CG-T7",
+      "title": "CG-T7",
+      "status": "complete",
+      "depends_on": [
+        "CG-T5",
+        "CG-T6"
+      ],
+      "commit_sha": null,
+      "planned_files": [
+        "src/components/CustomerList.tsx",
+        "src/App.tsx",
+        "src/components/SiteList.tsx",
+        "src/index.css"
+      ],
+      "acceptance": [
+        "AC-015",
+        "AC-020"
+      ],
+      "note": null
+    },
+    {
+      "key": "CG-T8",
+      "title": "CG-T8",
+      "status": "complete",
+      "depends_on": [
+        "CG-T1"
+      ],
+      "commit_sha": null,
+      "planned_files": [
+        "src/components/sitePinsLayer.ts",
+        "src/components/MapShell.tsx"
+      ],
+      "acceptance": [
+        "AC-010"
+      ],
+      "note": null
+    },
+    {
+      "key": "CG-T9",
+      "title": "batch-gate remediation",
+      "status": "complete",
+      "depends_on": [],
+      "commit_sha": null,
+      "planned_files": [],
+      "acceptance": [],
+      "note": null
+    },
+    {
+      "key": "CG-T10",
+      "title": "test harness + RLS/EWKT verification",
+      "status": "complete",
+      "depends_on": [],
+      "commit_sha": null,
+      "planned_files": [],
+      "acceptance": [],
+      "note": null
+    },
+    {
+      "key": "CG-T11",
+      "title": "0002 populated-table backfill",
+      "status": "complete",
+      "depends_on": [],
+      "commit_sha": null,
+      "planned_files": [],
+      "acceptance": [],
+      "note": null
+    },
+    {
+      "key": "CG-T12",
+      "title": "AC-016 geocode-cache test",
+      "status": "complete",
+      "depends_on": [],
+      "commit_sha": null,
+      "planned_files": [],
+      "acceptance": [],
+      "note": null
+    }
+  ]
+}

@@ -1,0 +1,186 @@
+{
+  "schema": "thin-manifest/1",
+  "slug": "reference-overlays",
+  "run_dir": "docs/step-5-pipeline/2026-06-28/2034-WAVE-reference-overlays",
+  "track": "orchestrated",
+  "chain": [
+    "cto",
+    "architect-pre",
+    "spec",
+    "ui-spec",
+    "decompose",
+    "explore",
+    "implement",
+    "integrate",
+    "gate"
+  ],
+  "status": "complete",
+  "steps": [
+    {
+      "phase": "implement",
+      "status": "running",
+      "note": "building RO-T8"
+    }
+  ],
+  "commit_sha": null,
+  "surface_required": false,
+  "created_at": "2026-06-29T01:57:50Z",
+  "updated_at": "2026-06-29T02:34:08Z",
+  "tickets": [
+    {
+      "key": "RO-T1",
+      "title": "verticalStyle.ts per-vertical palette + neutral fallback + tests",
+      "status": "complete",
+      "depends_on": [],
+      "commit_sha": "05c480b",
+      "planned_files": [
+        "src/lib/verticalStyle.ts",
+        "src/lib/verticalStyle.test.ts"
+      ],
+      "acceptance": [
+        "AC-001",
+        "AC-002",
+        "AC-003"
+      ],
+      "note": null
+    },
+    {
+      "key": "RO-T2",
+      "title": "sitePinsLayer color-by-vertical + opt-in filter + tests",
+      "status": "complete",
+      "depends_on": [
+        "RO-T1"
+      ],
+      "commit_sha": "7ea6f7f",
+      "planned_files": [
+        "src/components/sitePinsLayer.ts",
+        "src/components/sitePinsLayer.test.ts"
+      ],
+      "acceptance": [
+        "AC-004",
+        "AC-005",
+        "AC-006"
+      ],
+      "note": null
+    },
+    {
+      "key": "RO-T3",
+      "title": "capitals/metros JSON + referenceLabelsLayer (TextLayer) + tests",
+      "status": "complete",
+      "depends_on": [],
+      "commit_sha": "b15025a",
+      "planned_files": [
+        "src/data/capitals.json",
+        "src/data/metros.json",
+        "src/data/metros.source.md",
+        "src/components/referenceLabelsLayer.ts",
+        "src/components/referenceLabelsLayer.test.ts"
+      ],
+      "acceptance": [
+        "AC-007",
+        "AC-008",
+        "AC-009",
+        "AC-010",
+        "AC-011"
+      ],
+      "note": null
+    },
+    {
+      "key": "RO-T4",
+      "title": "zctaSource.ts (env-gated graceful-degradation + click-to-zip) + tests + runbook",
+      "status": "complete",
+      "depends_on": [],
+      "commit_sha": "4fee87c",
+      "planned_files": [
+        "src/components/zctaSource.ts",
+        "src/components/zctaSource.test.ts",
+        ".env.example",
+        "docs/zcta-tiles-setup.md"
+      ],
+      "acceptance": [
+        "AC-012",
+        "AC-013",
+        "AC-014"
+      ],
+      "note": null
+    },
+    {
+      "key": "RO-T5",
+      "title": "MapShell mount (z-order labels>pins, ZCTA<pins) + new props",
+      "status": "complete",
+      "depends_on": [
+        "RO-T2",
+        "RO-T3",
+        "RO-T4"
+      ],
+      "commit_sha": "b4daefc",
+      "planned_files": [
+        "src/components/MapShell.tsx"
+      ],
+      "acceptance": [
+        "AC-019",
+        "AC-020",
+        "AC-023"
+      ],
+      "note": null
+    },
+    {
+      "key": "RO-T6",
+      "title": "SaturationPanel -> Map layers panel (in-place) + index.css + tests",
+      "status": "complete",
+      "depends_on": [
+        "RO-T1"
+      ],
+      "commit_sha": "09a75a1",
+      "planned_files": [
+        "src/components/SaturationPanel.tsx",
+        "src/components/SaturationPanel.test.tsx",
+        "src/index.css"
+      ],
+      "acceptance": [
+        "AC-015",
+        "AC-016",
+        "AC-017"
+      ],
+      "note": null
+    },
+    {
+      "key": "RO-T7",
+      "title": "App wiring + integration + wave code-review",
+      "status": "complete",
+      "depends_on": [
+        "RO-T5",
+        "RO-T6"
+      ],
+      "commit_sha": "3ec775a",
+      "planned_files": [
+        "src/App.tsx"
+      ],
+      "acceptance": [
+        "AC-018",
+        "AC-021",
+        "AC-022",
+        "AC-024"
+      ],
+      "note": null
+    },
+    {
+      "key": "RO-T8",
+      "title": "batch-gate remediation \u2014 CR-001 return type, ui M1 summary font, a11y A11Y-001/002",
+      "status": "complete",
+      "depends_on": [
+        "RO-T5",
+        "RO-T6"
+      ],
+      "commit_sha": "a44ddc1",
+      "planned_files": [
+        "src/components/deckLayers.ts",
+        "src/components/SaturationPanel.tsx",
+        "src/index.css"
+      ],
+      "acceptance": [],
+      "note": null
+    }
+  ],
+  "current_ticket": "RO-T8"
+}
