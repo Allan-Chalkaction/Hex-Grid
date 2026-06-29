@@ -218,7 +218,7 @@ export function MapShell({
       // surrounding chrome. It is not a keyboard trap (focus passes through).
       // role="application" makes the aria-label reliably exposed (A11Y-011).
       role="application"
-      aria-label="Map of the continental United States"
+      aria-label="Map of the United States"
       style={{ position: 'absolute', inset: 0 }}
     />
   );
