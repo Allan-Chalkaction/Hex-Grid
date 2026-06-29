@@ -6,6 +6,7 @@ import { CustomerForm } from './components/CustomerForm';
 import { CustomerImport } from './components/CustomerImport';
 import { CustomerList } from './components/CustomerList';
 import { SaturationPanel } from './components/SaturationPanel';
+import { zctaConfigured } from './components/zctaSource';
 import { supabase } from './lib/supabaseClient';
 import type { SiteGeo } from './lib/customers';
 import { findSiteConflicts, type Conflict } from './lib/conflicts';
@@ -84,6 +85,18 @@ export function App() {
   const [selectedVertical, setSelectedVertical] = useState<string | null>(null);
   const [showHeatmap, setShowHeatmap] = useState(true);
   const [showProspecting, setShowProspecting] = useState(false);
+  // ---- Wave 5 (RO-T7): reference + filter toggles lifted alongside the W4 state.
+  // The SAME `selectedVertical` (above) drives saturation AND the pin filter —
+  // there is exactly one vertical control/state (AC-021). Defaults:
+  // capitals/metros/ZCTA/filter OFF, zones ON (AC-018).
+  const [showCapitals, setShowCapitals] = useState(false);
+  const [showMetros, setShowMetros] = useState(false);
+  const [showZcta, setShowZcta] = useState(false);
+  const [showZones, setShowZones] = useState(true);
+  const [filterToVertical, setFilterToVertical] = useState(false);
+  // Whether a ZCTA tile source is configured (env-only; constant per session) —
+  // drives the panel's ZIP toggle enable/disable (graceful degrade — RO-T4).
+  const zctaIsConfigured = zctaConfigured();
   const [viewport, setViewport] = useState<Viewport | null>(null);
   const [saturation, setSaturation] = useState<SaturationResult>(EMPTY_SATURATION);
   const [computing, setComputing] = useState(false);
@@ -228,17 +241,30 @@ export function App() {
           selectedVertical={selectedVertical}
           showHeatmap={showHeatmap}
           showProspecting={showProspecting}
+          showZones={showZones}
+          filterToVertical={filterToVertical}
+          showCapitals={showCapitals}
+          showMetros={showMetros}
+          showZcta={showZcta}
+          zoom={viewport?.zoom ?? 4}
           dataVersion={version}
           resolution={saturation.resolution}
           onViewportChange={handleViewportChange}
           flyToTarget={flyToTarget}
         />
-        {/* AS-T6 / AC-021: the floating top-right saturation panel — a SEPARATE
-            surface; the left CRUD .site-panel below is untouched. */}
+        {/* RO-T7 / AC-021: the consolidated top-right "Map layers" panel — a
+            SEPARATE surface; the left CRUD .site-panel below is untouched. The
+            ONE shared `selectedVertical` drives saturation AND the pin filter. */}
         <SaturationPanel
           selectedVertical={selectedVertical}
           showHeatmap={showHeatmap}
           showProspecting={showProspecting}
+          filterToVertical={filterToVertical}
+          showCapitals={showCapitals}
+          showMetros={showMetros}
+          showZcta={showZcta}
+          showZones={showZones}
+          zctaConfigured={zctaIsConfigured}
           coveredCount={saturation.coveredCount}
           openCount={saturation.openCount}
           capped={saturation.capped}
@@ -247,6 +273,11 @@ export function App() {
           onSelectVertical={handleSelectVertical}
           onToggleHeatmap={setShowHeatmap}
           onToggleProspecting={setShowProspecting}
+          onToggleFilter={setFilterToVertical}
+          onToggleCapitals={setShowCapitals}
+          onToggleMetros={setShowMetros}
+          onToggleZcta={setShowZcta}
+          onToggleZones={setShowZones}
           onJumpToOpen={handleJumpToOpen}
         />
         {/* A11Y-004: the customer forms/list panel is the primary content, so it
