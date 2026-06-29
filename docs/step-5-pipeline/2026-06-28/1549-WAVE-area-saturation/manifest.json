@@ -1,0 +1,174 @@
+{
+  "schema": "thin-manifest/1",
+  "slug": "area-saturation",
+  "run_dir": "docs/step-5-pipeline/2026-06-28/1549-WAVE-area-saturation",
+  "track": "orchestrated",
+  "chain": [
+    "cto",
+    "architect-pre",
+    "spec",
+    "ui-spec",
+    "decompose",
+    "explore",
+    "implement",
+    "integrate",
+    "gate"
+  ],
+  "status": "complete",
+  "steps": [
+    {
+      "phase": "implement",
+      "status": "running",
+      "note": "building AS-T7"
+    }
+  ],
+  "commit_sha": null,
+  "surface_required": false,
+  "created_at": "2026-06-28T21:10:22Z",
+  "updated_at": "2026-06-28T23:04:24Z",
+  "tickets": [
+    {
+      "key": "AS-T1",
+      "title": "effectiveRadiusMi shared helper + siteZonesLayer refactor + parity test",
+      "status": "complete",
+      "depends_on": [],
+      "commit_sha": "3be0a50",
+      "planned_files": [
+        "src/lib/coverage.ts",
+        "src/lib/coverage.test.ts",
+        "src/components/siteZonesLayer.ts"
+      ],
+      "acceptance": [
+        "AC-001",
+        "AC-002",
+        "AC-003"
+      ],
+      "note": null
+    },
+    {
+      "key": "AS-T2",
+      "title": "coverage.ts compute core (overlap-weighted) + h3-js + unit tests",
+      "status": "complete",
+      "depends_on": [
+        "AS-T1"
+      ],
+      "commit_sha": "e797f00",
+      "planned_files": [
+        "src/lib/coverage.ts",
+        "src/lib/coverage.test.ts",
+        "package.json"
+      ],
+      "acceptance": [
+        "AC-004",
+        "AC-005",
+        "AC-006",
+        "AC-007",
+        "AC-008",
+        "AC-009",
+        "AC-010",
+        "AC-011",
+        "AC-013",
+        "AC-015",
+        "AC-028",
+        "AC-030"
+      ],
+      "note": null
+    },
+    {
+      "key": "AS-T3",
+      "title": "saturationLayer + prospectLayer (H3HexagonLayer, Blues ramp)",
+      "status": "complete",
+      "depends_on": [
+        "AS-T2"
+      ],
+      "commit_sha": "842189b",
+      "planned_files": [
+        "src/components/saturationLayer.ts",
+        "src/components/saturationLayer.test.ts"
+      ],
+      "acceptance": [
+        "AC-014",
+        "AC-017"
+      ],
+      "note": null
+    },
+    {
+      "key": "AS-T4",
+      "title": "MapShell mount (under zones+pins) + debounced moveend recompute",
+      "status": "complete",
+      "depends_on": [
+        "AS-T3"
+      ],
+      "commit_sha": "950cbcd",
+      "planned_files": [
+        "src/components/MapShell.tsx"
+      ],
+      "acceptance": [
+        "AC-012",
+        "AC-018",
+        "AC-019",
+        "AC-020"
+      ],
+      "note": null
+    },
+    {
+      "key": "AS-T5",
+      "title": "SaturationPanel (selector/toggles/legend/aria-live) + index.css",
+      "status": "complete",
+      "depends_on": [],
+      "commit_sha": "f0f0364",
+      "planned_files": [
+        "src/components/SaturationPanel.tsx",
+        "src/index.css"
+      ],
+      "acceptance": [
+        "AC-022",
+        "AC-023",
+        "AC-024",
+        "AC-025",
+        "AC-026",
+        "AC-027",
+        "AC-029"
+      ],
+      "note": null
+    },
+    {
+      "key": "AS-T6",
+      "title": "App wiring \u2014 cells derivation + thread + jump-to-open",
+      "status": "complete",
+      "depends_on": [
+        "AS-T2",
+        "AS-T4",
+        "AS-T5"
+      ],
+      "commit_sha": "e13ed71",
+      "planned_files": [
+        "src/App.tsx"
+      ],
+      "acceptance": [
+        "AC-016",
+        "AC-021"
+      ],
+      "note": null
+    },
+    {
+      "key": "AS-T7",
+      "title": "batch-gate remediation \u2014 a11y A11Y-001/002 + perf PR-002/PR-003",
+      "status": "complete",
+      "depends_on": [
+        "AS-T5",
+        "AS-T6"
+      ],
+      "commit_sha": "b1225aa",
+      "planned_files": [
+        "src/components/SaturationPanel.tsx",
+        "src/lib/coverage.ts",
+        "src/components/saturationLayer.ts",
+        "src/App.tsx"
+      ],
+      "acceptance": [],
+      "note": null
+    }
+  ],
+  "current_ticket": "AS-T7"
+}

@@ -1,0 +1,4 @@
+# UI Review — Wave 5 · Verdict: PASS_WITH_WARNINGS (the named legibility gate — PASS)
+High-fidelity. Legibility checklist passes every axis: per-vertical palette matches §4 value-for-value + provably disjoint from conflict-red/saturation-blue/prospect-green; pins opaque + 1px white stroke; capital/metro labels white-sdf-halo with tier separation + dual clutter control (min-zoom + collision); z-order wash→prospect→zones→pins→metros→capitals + ZCTA MapLibre-native beneath; consolidated "Map layers" panel holds token discipline (only sanctioned new classes + literal hex). 
+- M1 (MED, APPLY) `<details>` summary renders 1rem, spec §3 wants 0.875rem (no summary font-size rule) → add `.saturation-panel details summary { font-size:0.875rem }`.
+- L1 (LOW, no-op) ZCTA layers added without beforeId → lines above basemap place labels; §6-sanctioned fallback (deck overlay still above; lines subtle). No action.

@@ -1,0 +1,5 @@
+DEFER AC-018/CR-002 → standalone (test-infra): add jsdom + @testing-library/react + a behavioral SaturationPanel/App render test (five useState defaults; disabled-when-no-vertical; aria-describedby linkage; toggling a checkbox changes the layer set). Project is node-only; panel a11y currently verified by source-contract greps. [found_by=spec-conformance,code-reviewer, at=2026-06-28]
+DEFER CR-003 → standalone (perf): isolate the metro min-zoom gate into its own effect so a pan not crossing zoom-5 doesn't rebuild all deck layers (MapShell). [found_by=code-reviewer, at=2026-06-28]
+DEFER CR-004 → standalone: state-suffix duplicate metro labels in metros.json (Springfield ×3 etc.) for on-map clarity (JSON-only). [found_by=code-reviewer, at=2026-06-28]
+DEFER ZCTA-tileset → OPERATOR: provision/host the ZCTA vector tileset + set VITE_ZCTA_TILES_URL (runbook docs/zcta-tiles-setup.md) to light up the ZIP overlay. [found_by=cto-advisor,architect-review, at=2026-06-28]
+DEFER ui-L1 → optional: add beforeId to the ZCTA MapLibre layers so boundary lines sit beneath basemap place labels (spec-sanctioned fallback in place). [found_by=ui-review, at=2026-06-28]

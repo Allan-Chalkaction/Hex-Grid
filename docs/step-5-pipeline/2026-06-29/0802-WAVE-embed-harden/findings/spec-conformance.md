@@ -1,0 +1,2 @@
+# Spec-Conformance — Wave 6 · Verdict: CONFORMS · 15/15, 0 DRIFT, 0 GAP, coverage complete
+All AC-001..015 implemented + test-exercised. supabase-js-free boundary, configureIdentity + self-registered defaults, thin delegators wired to real consumers, barrel + reference contract doc, ZCTA source-label helper, dual env-var decls, AK/HI aria-label honesty — all with file:line + colocated vitest. tsc clean; W6 + W2-5 suites green; diff confined to in-scope files (no .sql/migration; customers.ts byte-unchanged). findings[] empty.

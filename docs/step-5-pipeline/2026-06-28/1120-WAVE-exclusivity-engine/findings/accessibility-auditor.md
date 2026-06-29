@@ -1,0 +1,6 @@
+# Accessibility Audit — Wave 3 · WCAG 2.2 AA · Verdict: FAIL
+W3-specific patterns (both new <select>, both conflict warn dialogs, zone-status, Checking… neutral, map thicker-stroke cue) largely correct; all W2 A11Y-001..011 verified resolved. 3 findings:
+- **A11Y-001 (HIGH, APPLY, WCAG 4.1.2) — delete dialog has no accessible name** (CustomerList:241-265). The W2-converted delete <dialog> lacks aria-labelledby/aria-label (only a <p>). Add useId + <h2 id> "Delete customer" + aria-labelledby (mirror the W3 conflict dialogs). [This is a latent W2 carryover the W2 audit missed, surfaced now.]
+- **A11Y-002 (MED, APPLY, WCAG 2.4.3/APG) — delete dialog default focus on the destructive button** (CustomerList:207-210). showModal() auto-focuses "Delete customer"; Enter twice = irreversible delete. Add cancelDeleteRef + focus Cancel after showModal (mirror the conflict dialogs).
+- **A11Y-003 (MED, APPLY, WCAG 4.1.3) — 3 conditionally-mounted aria-live=polite regions regress the W2 A11Y-003 pre-seeded pattern**: addNote (CustomerForm:301-305), "Saving vertical…" (CustomerList:331-335), "Saving radius…" (CustomerList:582-586). Render the containers unconditionally, toggle content.
+Contrast all PASS (W2 palette). Recommend eslint-plugin-jsx-a11y (open since W2).

@@ -1,0 +1,205 @@
+{
+  "schema": "thin-manifest/1",
+  "slug": "exclusivity-engine",
+  "run_dir": "docs/step-5-pipeline/2026-06-28/1120-WAVE-exclusivity-engine",
+  "track": "orchestrated",
+  "chain": [
+    "cto",
+    "architect-pre",
+    "spec",
+    "decompose",
+    "explore",
+    "implement",
+    "integrate",
+    "gate"
+  ],
+  "status": "complete",
+  "steps": [
+    {
+      "phase": "implement",
+      "status": "running",
+      "note": "building EX-T8"
+    }
+  ],
+  "commit_sha": null,
+  "surface_required": false,
+  "created_at": "2026-06-28T16:48:26Z",
+  "updated_at": "2026-06-28T18:05:59Z",
+  "tickets": [
+    {
+      "key": "EX-T1",
+      "title": "Migration 0003 \u2014 customer.vertical + extended site_geo + conflict RPCs + RLS/spatial tests",
+      "status": "complete",
+      "depends_on": [],
+      "commit_sha": "b30c043",
+      "planned_files": [
+        "supabase/migrations/0003_exclusivity_engine.sql",
+        "src/lib/exclusivity.integration.test.ts",
+        "src/test/integration-setup.ts",
+        "vitest.config.ts"
+      ],
+      "acceptance": [
+        "AC-001",
+        "AC-002",
+        "AC-003",
+        "AC-004",
+        "AC-005",
+        "AC-006",
+        "AC-007",
+        "AC-008",
+        "AC-009",
+        "AC-010",
+        "AC-011",
+        "AC-012"
+      ],
+      "note": null
+    },
+    {
+      "key": "EX-T2",
+      "title": "Conflict seam (conflicts.ts) + SiteGeo extension + updateSiteRadius",
+      "status": "complete",
+      "depends_on": [
+        "EX-T1"
+      ],
+      "commit_sha": "31d48f0",
+      "planned_files": [
+        "src/lib/conflicts.ts",
+        "src/lib/customers.ts",
+        "src/lib/conflicts.test.ts"
+      ],
+      "acceptance": [
+        "AC-013",
+        "AC-014",
+        "AC-015"
+      ],
+      "note": null
+    },
+    {
+      "key": "EX-T3",
+      "title": "Customer vertical picker (add + edit) \u2192 customer.vertical",
+      "status": "complete",
+      "depends_on": [
+        "EX-T2"
+      ],
+      "commit_sha": "7cf5969",
+      "planned_files": [
+        "src/components/CustomerForm.tsx",
+        "src/components/CustomerList.tsx",
+        "src/lib/customers.ts",
+        "src/index.css"
+      ],
+      "acceptance": [
+        "AC-019"
+      ],
+      "note": null
+    },
+    {
+      "key": "EX-T4",
+      "title": "Per-site radius picker (Off/0.5\u20133 mi) in SiteRow",
+      "status": "complete",
+      "depends_on": [
+        "EX-T2",
+        "EX-T3"
+      ],
+      "commit_sha": "6e8c906",
+      "planned_files": [
+        "src/components/CustomerList.tsx",
+        "src/index.css"
+      ],
+      "acceptance": [
+        "AC-018"
+      ],
+      "note": null
+    },
+    {
+      "key": "EX-T5",
+      "title": "Zone circles (siteZonesLayer) + conflictIds + MapShell mount + zone-status",
+      "status": "complete",
+      "depends_on": [
+        "EX-T2",
+        "EX-T4"
+      ],
+      "commit_sha": "ea47309",
+      "planned_files": [
+        "src/components/siteZonesLayer.ts",
+        "src/components/MapShell.tsx",
+        "src/App.tsx",
+        "src/components/CustomerList.tsx",
+        "src/index.css"
+      ],
+      "acceptance": [
+        "AC-021",
+        "AC-022",
+        "AC-024"
+      ],
+      "note": null
+    },
+    {
+      "key": "EX-T6",
+      "title": "Warn-with-confirm conflict dialog on add + move",
+      "status": "complete",
+      "depends_on": [
+        "EX-T2",
+        "EX-T3",
+        "EX-T5"
+      ],
+      "commit_sha": "cf44ea3",
+      "planned_files": [
+        "src/components/CustomerForm.tsx",
+        "src/components/CustomerList.tsx",
+        "src/index.css"
+      ],
+      "acceptance": [
+        "AC-016",
+        "AC-017",
+        "AC-020",
+        "AC-023",
+        "AC-024"
+      ],
+      "note": null
+    },
+    {
+      "key": "EX-T7",
+      "title": "Configurable per-customer exclusivity scope (CR-001) \u2014 migration 0004 + predicate + toggle",
+      "status": "complete",
+      "depends_on": [
+        "EX-T1",
+        "EX-T2",
+        "EX-T3"
+      ],
+      "commit_sha": "a1dbc7c",
+      "planned_files": [
+        "supabase/migrations/0004_exclusivity_scope.sql",
+        "src/lib/conflicts.ts",
+        "src/lib/customers.ts",
+        "src/components/CustomerForm.tsx",
+        "src/components/CustomerList.tsx",
+        "tests/integration/exclusivity.test.ts"
+      ],
+      "acceptance": [
+        "CR-001"
+      ],
+      "note": null
+    },
+    {
+      "key": "EX-T8",
+      "title": "Batch-gate remediation \u2014 a11y (A11Y-001..003), ui M1, SA-001, MR-001",
+      "status": "complete",
+      "depends_on": [
+        "EX-T5",
+        "EX-T6"
+      ],
+      "commit_sha": "af316e1",
+      "planned_files": [
+        "src/components/CustomerList.tsx",
+        "src/components/CustomerForm.tsx",
+        "src/index.css",
+        "src/lib/conflicts.ts",
+        "supabase/migrations/0003_exclusivity_engine.sql"
+      ],
+      "acceptance": [],
+      "note": null
+    }
+  ],
+  "current_ticket": "EX-T8"
+}
