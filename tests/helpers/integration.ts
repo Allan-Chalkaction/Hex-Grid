@@ -72,15 +72,29 @@ export async function createTenantUser(
   return { tenantId: tenant.id, userId: created.user.id, email, password };
 }
 
-/** Seed one customer (service-role) and return its id. */
+/**
+ * Seed one customer (service-role) and return its id. The optional `vertical`
+ * (Wave 3, EX-T1) writes the new `customer.vertical` column directly — the
+ * conflict key used by the `conflicts_at` / `site_conflicts` RPCs.
+ *
+ * `selfConflict` (Wave 3, EX-T7 / CR-001) writes `customer.self_conflict`:
+ * `false` (the DB default) = competitor-only (a brand does NOT conflict with its
+ * own sites); `true` = also protect this brand's own sites from each other.
+ * Omitted ⇒ the column default (false) applies.
+ */
 export async function seedCustomer(
   admin: SupabaseClient,
   tenantId: string,
   name: string,
+  vertical?: string | null,
+  selfConflict?: boolean,
 ): Promise<string> {
+  const row: Record<string, unknown> = { tenant_id: tenantId, name };
+  if (vertical !== undefined) row.vertical = vertical;
+  if (selfConflict !== undefined) row.self_conflict = selfConflict;
   const { data, error } = await admin
     .from('customer')
-    .insert({ tenant_id: tenantId, name })
+    .insert(row)
     .select('id')
     .single();
   if (error || !data) throw new Error(`seed customer failed: ${error?.message}`);
@@ -90,6 +104,10 @@ export async function seedCustomer(
 /**
  * Seed one site (service-role) with a real location via EWKT so it materializes
  * in the `site_geo` view. Returns the new site id.
+ *
+ * `opts` (Wave 3, EX-T1) sets the exclusivity-zone fields used by the conflict
+ * predicate: `radiusMi` → `site.exclusivity_radius_mi` (null = off), `isZoneOn`
+ * → `site.is_zone_on` (defaults true in the DB when omitted).
  */
 export async function seedSite(
   admin: SupabaseClient,
@@ -98,20 +116,55 @@ export async function seedSite(
   name: string,
   lat: number,
   lng: number,
+  opts: { radiusMi?: number | null; isZoneOn?: boolean } = {},
 ): Promise<string> {
+  const row: Record<string, unknown> = {
+    tenant_id: tenantId,
+    customer_id: customerId,
+    name,
+    address: name,
+    geog: `SRID=4326;POINT(${lng} ${lat})`,
+  };
+  if (opts.radiusMi !== undefined) row.exclusivity_radius_mi = opts.radiusMi;
+  if (opts.isZoneOn !== undefined) row.is_zone_on = opts.isZoneOn;
   const { data, error } = await admin
     .from('site')
-    .insert({
-      tenant_id: tenantId,
-      customer_id: customerId,
-      name,
-      address: name,
-      geog: `SRID=4326;POINT(${lng} ${lat})`,
-    })
+    .insert(row)
     .select('id')
     .single();
   if (error || !data) throw new Error(`seed site failed: ${error?.message}`);
   return data.id as string;
+}
+
+/**
+ * Geodesic destination point: from (lat,lng), travel `distanceMi` miles along
+ * `bearingDeg` (0 = north, 90 = east). Spherical-earth haversine destination
+ * formula (R = 3958.7613 mi). For the few-mile separations the spatial tests use
+ * this matches PostGIS `geography` ST_Distance (a spheroid) to well under 1% —
+ * far inside the radius-boundary margins the AC-008/011 cases assert against.
+ */
+export function destinationPoint(
+  lat: number,
+  lng: number,
+  distanceMi: number,
+  bearingDeg: number,
+): { lat: number; lng: number } {
+  const R = 3958.7613;
+  const d = distanceMi / R;
+  const brng = (bearingDeg * Math.PI) / 180;
+  const lat1 = (lat * Math.PI) / 180;
+  const lng1 = (lng * Math.PI) / 180;
+  const lat2 = Math.asin(
+    Math.sin(lat1) * Math.cos(d) +
+      Math.cos(lat1) * Math.sin(d) * Math.cos(brng),
+  );
+  const lng2 =
+    lng1 +
+    Math.atan2(
+      Math.sin(brng) * Math.sin(d) * Math.cos(lat1),
+      Math.cos(d) - Math.sin(lat1) * Math.sin(lat2),
+    );
+  return { lat: (lat2 * 180) / Math.PI, lng: (lng2 * 180) / Math.PI };
 }
 
 /** A fresh anon client signed in as the given user (role = authenticated). */

@@ -27,6 +27,13 @@ export interface SiteGeo {
   address: string | null;
   lat: number | null;
   lng: number | null;
+  // Wave 3 (EX-T1/EX-T2): the zone-render + conflict-key fields appended to the
+  // 0003 site_geo view. Additive — existing readers (sitePinsLayer) are
+  // unaffected. `vertical` is joined from the owning customer (the conflict key
+  // lives on customer, not site).
+  exclusivity_radius_mi: number | null;
+  is_zone_on: boolean;
+  vertical: string | null;
 }
 
 /** One site to create under a customer. `name` defaults to `address` if absent. */
@@ -38,7 +45,46 @@ export interface SiteInput {
 export interface CreateCustomerInput {
   customerName: string;
   attributes?: Record<string, unknown>;
+  /**
+   * The customer's vertical token (EX-T3 / AC-019) — written to the
+   * `customer.vertical` COLUMN (the conflict key), NOT to `attributes`. `null` /
+   * omitted = no vertical (the explicit "Select vertical…" state).
+   */
+  vertical?: string | null;
+  /**
+   * Per-customer exclusivity scope (EX-T7 / CR-001). `false` (default) =
+   * competitor-only: a brand does NOT conflict with its own sites. `true` opts
+   * into same-brand territory protection. Written to `customer.self_conflict`.
+   */
+  selfConflict?: boolean;
   sites: SiteInput[];
+}
+
+/**
+ * The controlled customer-vertical value set (EX-T3 / AC-019). Lowercase tokens
+ * stored in `customer.vertical`; the label is the human-facing option text. A
+ * controlled list makes "two customers share a vertical" reliable (string
+ * equality is the conflict key); the column stays `text` so the list can grow
+ * without a migration.
+ */
+export const VERTICAL_OPTIONS: ReadonlyArray<{ value: string; label: string }> =
+  [
+    { value: 'gas', label: 'Gas / convenience' },
+    { value: 'grocery', label: 'Grocery' },
+    { value: 'pharmacy', label: 'Pharmacy' },
+    { value: 'qsr', label: 'Quick-service restaurant (QSR)' },
+    { value: 'fitness', label: 'Fitness' },
+    { value: 'automotive', label: 'Automotive' },
+    { value: 'banking', label: 'Banking' },
+    { value: 'hotel', label: 'Hotel / lodging' },
+  ];
+
+/** Human label for a stored vertical token (falls back to the raw token). */
+export function verticalLabel(token: string | null): string {
+  if (!token) {
+    return '';
+  }
+  return VERTICAL_OPTIONS.find((o) => o.value === token)?.label ?? token;
 }
 
 /** Per-site outcome surfaced to the form for the geocode-status UI (AC-012). */
@@ -62,6 +108,8 @@ export interface CreateCustomerResult {
 export async function upsertCustomer(
   name: string,
   attributes: Record<string, unknown> = {},
+  vertical: string | null = null,
+  selfConflict: boolean = false,
 ): Promise<string> {
   const tenantId = await getActiveTenantId();
   if (!tenantId) {
@@ -70,8 +118,9 @@ export async function upsertCustomer(
 
   // Non-destructive dedup (CR-001): look the customer up by (tenant_id, name)
   // first and INSERT only on a miss. The dedup path NEVER updates an existing
-  // customer's attributes — a caller that supplies none (e.g. the CSV import)
-  // must not clobber attributes a prior add already stored.
+  // customer's attributes/vertical — a caller that supplies none (e.g. the CSV
+  // import) must not clobber a value a prior add already stored. To change an
+  // existing customer's vertical, use updateCustomerVertical (the edit path).
   const existing = await supabase
     .from('customer')
     .select('id')
@@ -87,7 +136,13 @@ export async function upsertCustomer(
 
   const { data, error } = await supabase
     .from('customer')
-    .insert({ tenant_id: tenantId, name, attributes })
+    .insert({
+      tenant_id: tenantId,
+      name,
+      attributes,
+      vertical,
+      self_conflict: selfConflict,
+    })
     .select('id')
     .single();
 
@@ -209,6 +264,66 @@ export async function updateSiteAddress(
 }
 
 /**
+ * Set an existing customer's vertical (EX-T3 / AC-019 — the edit path). API-first
+ * PostgREST update on the `customer` base table, RLS-scoped by
+ * `customer_tenant_update` (0002). The picker's empty "Select vertical…" option
+ * passes `null` (clears the vertical → the customer can no longer conflict).
+ */
+export async function updateCustomerVertical(
+  customerId: string,
+  vertical: string | null,
+): Promise<void> {
+  const { error } = await supabase
+    .from('customer')
+    .update({ vertical })
+    .eq('id', customerId);
+  if (error) {
+    throw new Error(error.message);
+  }
+}
+
+/**
+ * Set an existing customer's exclusivity scope (EX-T7 / CR-001 — the edit path).
+ * API-first PostgREST update on the `customer` base table, RLS-scoped by
+ * `customer_tenant_update` (0002). `false` = competitor-only (a brand does NOT
+ * conflict with its own sites); `true` = also protect this brand's own sites
+ * from each other.
+ */
+export async function updateCustomerSelfConflict(
+  customerId: string,
+  selfConflict: boolean,
+): Promise<void> {
+  const { error } = await supabase
+    .from('customer')
+    .update({ self_conflict: selfConflict })
+    .eq('id', customerId);
+  if (error) {
+    throw new Error(error.message);
+  }
+}
+
+/**
+ * Set a site's exclusivity radius in miles (EX-T2 / AC-015). API-first PostgREST
+ * update on the `site` base table, RLS-scoped by `site_tenant_update` (0001).
+ * The radius picker's "Off" passes `null` — the locked off semantic (no zone,
+ * no circle; the site can still intrude a neighbor's zone). This is a pure
+ * radius write; conflict detection lives in the pure-reporting RPC seam
+ * (`conflicts.ts`), recomputed by the UI on data change.
+ */
+export async function updateSiteRadius(
+  siteId: string,
+  mi: number | null,
+): Promise<void> {
+  const { error } = await supabase
+    .from('site')
+    .update({ exclusivity_radius_mi: mi })
+    .eq('id', siteId);
+  if (error) {
+    throw new Error(error.message);
+  }
+}
+
+/**
  * Delete a customer; the `site.customer_id` FK `on delete cascade` (0002)
  * removes its sites in the database (AC-015).
  */
@@ -234,6 +349,8 @@ export async function createCustomerWithSites(
   const customerId = await upsertCustomer(
     input.customerName,
     input.attributes ?? {},
+    input.vertical ?? null,
+    input.selfConflict ?? false,
   );
 
   // site.name is NOT NULL (0001:34): default an absent name to the address.

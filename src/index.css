@@ -133,15 +133,34 @@ body,
 
 .field input,
 .field select,
-.field textarea {
+.field textarea,
+.radius-picker select {
   padding: 0.5rem;
   font-size: 1rem;
+}
+
+/* EX-T4 / AC-018: the per-site radius picker — an inline label+select that wraps
+ * naturally inside the existing .site-item flex row. Reuses the .field select
+ * padding above; the global :focus-visible outline is inherited. */
+.radius-picker {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
 }
 
 .field-inline {
   display: flex;
   gap: 0.5rem;
   align-items: flex-end;
+}
+
+/* EX-T7 / CR-001: the per-customer exclusivity-scope toggle — a native checkbox
+ * with its label inline. Reuses the field spacing idiom. */
+.field-checkbox {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 1rem;
 }
 
 .site-rows {
@@ -198,6 +217,52 @@ button.btn-danger {
 
 .geo-status--failed {
   color: #b00020;
+}
+
+/* EX-T5 / AC-022/AC-023: zone-status — the accessible, non-color-alone conflict
+ * signal in each SiteRow (word + glyph + color), cloned from .geo-status metrics.
+ * The map circle color + thicker conflict stroke are reinforcement only. Literal
+ * hex reused from the W2 palette. */
+.zone-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.875rem;
+  font-weight: 600;
+}
+
+.zone-status--off {
+  color: #555;
+}
+
+.zone-status--clear {
+  color: #137333;
+}
+
+.zone-status--conflict {
+  color: #b00020;
+}
+
+/* EX-T6 / AC-020: the warn-with-confirm conflict dialog (native <dialog>, reusing
+ * the W2 .confirm-dialog pattern) + its conflict list. Literal hex / rem scale. */
+.confirm-dialog {
+  max-width: 28rem;
+}
+
+/* ui M1: the dialog <h2> sits outside .panel-section, so the 1.1rem type-scale
+ * rule does not reach it (UA would render ~1.5rem). Pin it onto the scale. */
+.confirm-dialog h2 {
+  font-size: 1.1rem;
+  margin: 0 0 0.5rem;
+}
+
+.conflict-list {
+  margin: 0.5rem 0;
+  padding-left: 1.25rem;
+}
+
+.conflict-list li {
+  margin: 0.25rem 0;
 }
 
 .recovery {
