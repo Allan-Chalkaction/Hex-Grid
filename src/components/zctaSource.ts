@@ -46,6 +46,17 @@ export function zctaConfigured(): boolean {
 }
 
 /**
+ * The human label for the configured ZCTA source kind (EH-T3 / AC-009). Returns
+ * `VITE_ZCTA_SOURCE_LABEL` when set (e.g. `"USPS ZIP"` for a true-USPS tileset),
+ * else the honest default `"ZCTA approximation"` (Census ZCTA boundaries are an
+ * APPROXIMATION of USPS ZIP areas). Mirrors the `zctaTilesUrl()`/`zctaConfigured()`
+ * env-read precedent.
+ */
+export function zctaSourceLabel(): string {
+  return import.meta.env.VITE_ZCTA_SOURCE_LABEL || 'ZCTA approximation';
+}
+
+/**
  * Resolve a feature's ZCTA5 zip from its properties: try the pinned keys first,
  * then probe for the first 5-digit property value. Returns null when none found
  * (the click is then a silent no-op).

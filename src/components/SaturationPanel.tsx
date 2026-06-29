@@ -1,6 +1,7 @@
 import { useId } from 'react';
 import { VERTICAL_OPTIONS, verticalLabel } from '../lib/customers';
 import { verticalLegendRows, rgbCss } from '../lib/verticalStyle';
+import { zctaSourceLabel } from './zctaSource';
 
 /**
  * The floating top-right "Map layers" control panel (W4 AS-T5 + RO-T6).
@@ -188,7 +189,7 @@ export function SaturationPanel({
             aria-describedby={!zctaConfigured ? zctaNoteId : undefined}
             onChange={(e) => onToggleZcta(e.target.checked)}
           />
-          <label htmlFor={zctaId}>ZIP / ZCTA boundaries</label>
+          <label htmlFor={zctaId}>ZIP boundaries ({zctaSourceLabel()})</label>
         </div>
         {!zctaConfigured && (
           <p id={zctaNoteId} className="helper-text">
