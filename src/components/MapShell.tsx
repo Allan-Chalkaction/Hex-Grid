@@ -4,26 +4,34 @@ import { MapboxOverlay } from '@deck.gl/mapbox';
 import 'maplibre-gl/dist/maplibre-gl.css';
 import { sitePinsLayer } from './sitePinsLayer';
 import { siteZonesLayer } from './siteZonesLayer';
-import { saturationLayer, prospectLayer } from './saturationLayer';
+import { addZctaSource, setZctaVisible } from './zctaSource';
+import { buildDeckLayers } from './deckLayers';
 import type { SiteGeo } from '../lib/customers';
 import type { CoverageCell, LatLng, ViewportBounds } from '../lib/coverage';
 
 /**
- * The map shell (W1 AC-004/AC-010 reactive seam + W4 AS-T4 saturation mount).
+ * The map shell (W1 reactive seam + W4 saturation mount + W5 reference overlays).
  *
  * Renders a MapLibre map centered on CONUS using the OpenFreeMap `liberty` style
  * (no API key) and mounts a deck.gl `MapboxOverlay`. The overlay is held in a
  * ref created ONCE on map init and PERSISTS across renders; on every data change
  * the overlay's layers are refreshed via `overlay.setProps(...)`.
  *
- * Wave 4 extends the reactive layer array with the saturation WASH +
- * prospecting outlines mounted UNDER the W3 zones + pins (z-order is
- * load-bearing — AC-018/019), conditionally omitted so first paint is
- * byte-identical to W3 when no vertical is chosen / a toggle is off (AC-020).
- * It also adds the single debounced `moveend` viewport seam (AC-012) that drives
- * App's viewport-bounded recompute, and an optional `flyToTarget` ease for the
- * AS-T6 "jump to nearest open area" action.
+ * Wave 5 (reference-overlays — RO-T5) extends the reactive seam:
+ *   - **Color-by-vertical pins + opt-in filter** via the new `sitePinsLayer`
+ *     signature (`selectedVertical` / `filterToVertical`).
+ *   - **Capitals + metros label layers** appended LAST in the deck array (labels
+ *     above pins; capitals after metros so a capital wins a collision). Metros are
+ *     gated below ~zoom 5 (`shouldShowMetros`) off the lifted viewport `zoom`.
+ *   - **A `Site zones` toggle** (`showZones`, default on) — the W3 zone circles,
+ *     now conditionally spread (additive; no W3/W4 logic change).
+ *   - **The ZCTA boundary overlay** mounted as a MapLibre-NATIVE source (beneath
+ *     the whole deck overlay → ZIP below pins), env-gated + graceful-degrade.
+ *
+ * All reference layers are conditionally spread, so with every reference toggle
+ * off the deck array is byte-identical to the W4 composition (AC-019).
  */
+
 export function MapShell({
   sites,
   conflictIds,
@@ -32,6 +40,12 @@ export function MapShell({
   selectedVertical = null,
   showHeatmap = false,
   showProspecting = false,
+  showZones = true,
+  filterToVertical = false,
+  showCapitals = false,
+  showMetros = false,
+  showZcta = false,
+  zoom = 4,
   dataVersion = 0,
   resolution = 0,
   onViewportChange,
@@ -44,6 +58,12 @@ export function MapShell({
   selectedVertical?: string | null;
   showHeatmap?: boolean;
   showProspecting?: boolean;
+  showZones?: boolean;
+  filterToVertical?: boolean;
+  showCapitals?: boolean;
+  showMetros?: boolean;
+  showZcta?: boolean;
+  zoom?: number;
   dataVersion?: number;
   resolution?: number;
   onViewportChange?: (
@@ -64,6 +84,13 @@ export function MapShell({
   useEffect(() => {
     onViewportChangeRef.current = onViewportChange;
   }, [onViewportChange]);
+
+  // The current ZCTA toggle, read in the once-only load handler (so the initial
+  // visibility matches App state without re-binding the load listener).
+  const showZctaRef = useRef(showZcta);
+  useEffect(() => {
+    showZctaRef.current = showZcta;
+  }, [showZcta]);
 
   // Create the map + overlay ONCE; bind the single debounced viewport seam.
   useEffect(() => {
@@ -108,8 +135,14 @@ export function MapShell({
     };
     map.on('moveend', handleMoveEnd);
     // Emit once after the initial load so App has a viewport to compute against
-    // the moment a vertical is chosen.
-    map.on('load', emitViewport);
+    // the moment a vertical is chosen. RO-T5: also mount the ZCTA native source
+    // (no-op when unconfigured) BENEATH the deck overlay and apply the current
+    // ZIP visibility.
+    map.on('load', () => {
+      emitViewport();
+      addZctaSource(map);
+      setZctaVisible(map, showZctaRef.current);
+    });
 
     return () => {
       if (debounceTimer) {
@@ -121,20 +154,27 @@ export function MapShell({
     };
   }, []);
 
-  // Reactive layer refresh (zones under pins; the W4 wash under both). Conditional
-  // spread (AC-020): the saturation wash only when the heatmap is on AND a
-  // vertical is chosen; the prospect outlines only when prospecting is on AND a
-  // vertical is chosen — omitted ENTIRELY otherwise, so first paint == W3. Never
-  // per frame — only on data / flag change.
+  // Reactive deck layer refresh — the load-bearing z-order via the pure builder
+  // (AC-019). Conditional spread keeps first paint byte-identical to W4 when all
+  // reference toggles are off. Never per frame — only on data / flag change.
   useEffect(() => {
-    const trigger = { selectedVertical, dataVersion, resolution };
     overlayRef.current?.setProps({
-      layers: [
-        ...(showHeatmap && selectedVertical ? [saturationLayer(cells, trigger)] : []),
-        ...(showProspecting && selectedVertical ? [prospectLayer(openCells, trigger)] : []),
-        siteZonesLayer(sites, conflictIds),
-        sitePinsLayer(sites),
-      ],
+      layers: buildDeckLayers({
+        sites,
+        conflictIds,
+        cells,
+        openCells,
+        selectedVertical,
+        showHeatmap,
+        showProspecting,
+        showZones,
+        filterToVertical,
+        showCapitals,
+        showMetros,
+        zoom,
+        dataVersion,
+        resolution,
+      }),
     });
   }, [
     sites,
@@ -144,9 +184,22 @@ export function MapShell({
     selectedVertical,
     showHeatmap,
     showProspecting,
+    showZones,
+    filterToVertical,
+    showCapitals,
+    showMetros,
+    zoom,
     dataVersion,
     resolution,
   ]);
+
+  // RO-T5: flip the ZCTA native-layer visibility on toggle (MapLibre-native, not
+  // the deck array). No-op when the layers are absent (unconfigured / pre-load).
+  useEffect(() => {
+    if (mapRef.current) {
+      setZctaVisible(mapRef.current, showZcta);
+    }
+  }, [showZcta]);
 
   // AS-T6 hook: ease to a requested target (the nearest open cell centroid).
   useEffect(() => {
