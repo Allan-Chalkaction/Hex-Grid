@@ -234,8 +234,8 @@ export function SaturationPanel({
       </fieldset>
 
       <details>
-        <summary aria-controls={legendId}>Vertical colors</summary>
-        <ul className="vertical-legend" id={legendId}>
+        <summary>Vertical colors</summary>
+        <ul className="vertical-legend" id={legendId} role="list">
           {legendRows.map((row) => (
             <li key={row.label}>
               {/* The swatch is decorative; the text label is the SR carrier
@@ -253,7 +253,7 @@ export function SaturationPanel({
       </details>
 
       {showLegend && (
-        <ul className="sat-legend">
+        <ul className="sat-legend" role="list">
           {LEGEND_ROWS.map((row) => (
             <li key={row.label}>
               <span

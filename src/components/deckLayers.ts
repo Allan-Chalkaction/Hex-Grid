@@ -1,3 +1,4 @@
+import type { Layer } from 'deck.gl';
 import { sitePinsLayer } from './sitePinsLayer';
 import { siteZonesLayer } from './siteZonesLayer';
 import { saturationLayer, prospectLayer } from './saturationLayer';
@@ -43,7 +44,7 @@ export interface DeckLayerOptions {
  * above pins; capitals after metros so a capital wins a collision. (ZCTA is NOT
  * here — it is a MapLibre-native source beneath the entire overlay.)
  */
-export function buildDeckLayers(o: DeckLayerOptions) {
+export function buildDeckLayers(o: DeckLayerOptions): Layer[] {
   const trigger = {
     selectedVertical: o.selectedVertical,
     dataVersion: o.dataVersion,

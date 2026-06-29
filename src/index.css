@@ -440,6 +440,11 @@ button.btn-danger {
   margin-bottom: 0;
 }
 
+/* The collapsible legend's summary matches the fieldset legend type scale. */
+.saturation-panel details summary {
+  font-size: 0.875rem;
+}
+
 /* The collapsible vertical color legend (mirrors .sat-legend metrics). */
 .vertical-legend {
   list-style: none;
