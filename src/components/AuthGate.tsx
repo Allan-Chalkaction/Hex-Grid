@@ -1,6 +1,6 @@
 import { useEffect, useId, useState, type ReactNode } from 'react';
-import type { Session } from '@supabase/supabase-js';
 import { getSession, onAuthStateChange, signIn, signOut } from '../lib/auth';
+import type { AppSession } from '../lib/auth';
 
 /**
  * Auth gate (AC-005 / AC-007 / accessibility).
@@ -13,7 +13,7 @@ import { getSession, onAuthStateChange, signIn, signOut } from '../lib/auth';
  * keyboard-operable with the browser's native focus order.
  */
 export function AuthGate({ children }: { children: ReactNode }) {
-  const [session, setSession] = useState<Session | null>(null);
+  const [session, setSession] = useState<AppSession | null>(null);
   const [ready, setReady] = useState(false);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
