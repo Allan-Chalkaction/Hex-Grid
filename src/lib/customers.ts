@@ -73,6 +73,7 @@ export const VERTICAL_OPTIONS: ReadonlyArray<{ value: string; label: string }> =
     { value: 'grocery', label: 'Grocery' },
     { value: 'pharmacy', label: 'Pharmacy' },
     { value: 'qsr', label: 'Quick-service restaurant (QSR)' },
+    { value: 'restaurant', label: 'Restaurant' },
     { value: 'fitness', label: 'Fitness' },
     { value: 'automotive', label: 'Automotive' },
     { value: 'banking', label: 'Banking' },
