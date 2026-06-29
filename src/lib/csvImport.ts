@@ -23,7 +23,7 @@ export const DEFAULT_LIMITS: ImportLimits = {
 };
 
 const REQUIRED_COLUMNS = ['customer_name', 'address'] as const;
-const KNOWN_COLUMNS = ['customer_name', 'site_name', 'address'] as const;
+const KNOWN_COLUMNS = ['customer_name', 'site_name', 'address', 'vertical'] as const;
 
 export type RowOutcome =
   | 'created'
@@ -167,6 +167,11 @@ export async function importCsv(
     const customerName = (raw.customer_name ?? '').trim();
     const address = (raw.address ?? '').trim();
     const siteName = (raw.site_name ?? '').trim();
+    // Optional vertical column → the customer's vertical (lowercased to match the
+    // controlled VERTICAL_OPTIONS tokens). Only set on customer CREATE; the
+    // non-destructive upsert never clobbers a vertical a prior row/add stored,
+    // so the first row for a given brand wins.
+    const vertical = (raw.vertical ?? '').trim().toLowerCase() || null;
     const rowNo = i + 1;
 
     // Missing required columns — precise message.
@@ -205,7 +210,7 @@ export async function importCsv(
       const custKey = normalizeName(customerName);
       let customerId = customerIds.get(custKey);
       if (!customerId) {
-        customerId = await upsertCustomer(customerName);
+        customerId = await upsertCustomer(customerName, {}, vertical);
         customerIds.set(custKey, customerId);
       }
 
