@@ -44,6 +44,34 @@ export function verticalColor(vertical: string | null | undefined): RGB {
   return VERTICAL_COLORS[vertical ?? ''] ?? VERTICAL_NEUTRAL;
 }
 
+/** One vertical-color-legend row (swatch color + the SR-carrier text). */
+export interface VerticalLegendRow {
+  label: string;
+  color: RGB;
+}
+
+/**
+ * The vertical color legend rows (RO-T6 — AC-017): one row per `VERTICAL_OPTIONS`
+ * (label = the human option label = `verticalLabel(token)`) plus a final "No
+ * vertical" neutral row. `VERTICAL_OPTIONS` is imported, never re-authored. Pure
+ * (node-testable). Lives next to the palette it reads (keeps the panel a
+ * components-only module — react-refresh).
+ */
+export function verticalLegendRows(): VerticalLegendRow[] {
+  return [
+    ...VERTICAL_OPTIONS.map((o) => ({
+      label: o.label,
+      color: VERTICAL_COLORS[o.value] ?? VERTICAL_NEUTRAL,
+    })),
+    { label: 'No vertical', color: VERTICAL_NEUTRAL },
+  ];
+}
+
+/** A deck.gl `[r,g,b]` fill → a CSS `rgb()` string for a legend swatch bg. */
+export function rgbCss([r, g, b]: RGB): string {
+  return `rgb(${r}, ${g}, ${b})`;
+}
+
 // Re-export so the panel legend reads the vocabulary from one place — consumers
 // import VERTICAL_OPTIONS via customers.ts (or this module), never redeclaring it.
 export { VERTICAL_OPTIONS };
