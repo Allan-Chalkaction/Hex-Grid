@@ -30,6 +30,7 @@ export const VERTICAL_COLORS: Readonly<Record<string, RGB>> = {
   grocery: [162, 28, 175], // #a21caf — magenta
   pharmacy: [15, 118, 110], // #0f766e — teal
   qsr: [190, 24, 93], // #be185d — rose
+  restaurant: [67, 56, 202], // #4338ca — indigo
   fitness: [77, 124, 15], // #4d7c0f — olive-lime
   automotive: [146, 64, 14], // #92400e — brown
   banking: [71, 85, 105], // #475569 — slate
