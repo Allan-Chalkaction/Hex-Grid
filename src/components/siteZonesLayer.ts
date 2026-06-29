@@ -55,6 +55,10 @@ export function siteZonesLayer(
     // the shared `MILES_TO_METERS` constant — one source of truth with the
     // coverage helper (a one-sided edit breaks the parity test).
     getRadius: (d) => effectiveRadiusMi(d) * MILES_TO_METERS,
+    // The radius is true meters (≈ the ST_DWithin extent), so a 0.5–3 mi zone is
+    // sub-pixel at low/national zoom. Floor it to a few pixels so a zone is always
+    // visible the moment a radius is picked; it grows to true scale as you zoom in.
+    radiusMinPixels: 3,
     stroked: true,
     filled: true,
     lineWidthUnits: 'pixels',
