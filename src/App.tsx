@@ -1,12 +1,20 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
+import { cellToLatLng } from 'h3-js';
 import { AuthGate } from './components/AuthGate';
 import { MapShell } from './components/MapShell';
 import { CustomerForm } from './components/CustomerForm';
 import { CustomerImport } from './components/CustomerImport';
 import { CustomerList } from './components/CustomerList';
+import { SaturationPanel } from './components/SaturationPanel';
 import { supabase } from './lib/supabaseClient';
 import type { SiteGeo } from './lib/customers';
 import { findSiteConflicts, type Conflict } from './lib/conflicts';
+import {
+  computeSaturation,
+  type LatLng,
+  type SaturationResult,
+  type ViewportBounds,
+} from './lib/coverage';
 
 /**
  * App composition (AC-010 / AC-011 / AC-015 / AC-020 + EX-T5 AC-022/AC-024).
@@ -41,6 +49,23 @@ async function computeConflicts(
   return map;
 }
 
+/** The current map viewport emitted by MapShell's debounced moveend seam. */
+interface Viewport {
+  bounds: ViewportBounds;
+  zoom: number;
+  center: LatLng;
+}
+
+/** The empty saturation result (no vertical / no viewport / capped reset). */
+const EMPTY_SATURATION: SaturationResult = {
+  cells: [],
+  openCells: [],
+  coveredCount: 0,
+  openCount: 0,
+  capped: false,
+  resolution: 0,
+};
+
 export function App() {
   const [sites, setSites] = useState<SiteGeo[]>([]);
   const [version, setVersion] = useState(0);
@@ -54,6 +79,100 @@ export function App() {
     () => new Set(conflictsBySite.keys()),
     [conflictsBySite],
   );
+
+  // ---- Wave 4 (AS-T6): saturation state lifted alongside conflictIds. ----
+  const [selectedVertical, setSelectedVertical] = useState<string | null>(null);
+  const [showHeatmap, setShowHeatmap] = useState(true);
+  const [showProspecting, setShowProspecting] = useState(false);
+  const [viewport, setViewport] = useState<Viewport | null>(null);
+  const [saturation, setSaturation] = useState<SaturationResult>(EMPTY_SATURATION);
+  const [computing, setComputing] = useState(false);
+  const [flyToTarget, setFlyToTarget] = useState<LatLng | null>(null);
+  const [announcement, setAnnouncement] = useState<string | null>(null);
+
+  // Recompute is signalled "computing" from the EVENT handlers (a vertical change
+  // or a debounced moveend), not from the effect body — so the
+  // "Computing saturation…" state paints (AC-026) without a synchronous setState
+  // in the effect.
+  const handleViewportChange = useCallback(
+    (bounds: ViewportBounds, zoom: number, center: LatLng) => {
+      setComputing(true);
+      setViewport({ bounds, zoom, center });
+    },
+    [],
+  );
+
+  const handleSelectVertical = useCallback((vertical: string | null) => {
+    if (vertical !== null) {
+      setComputing(true);
+    }
+    setSelectedVertical(vertical);
+  }, []);
+
+  // Viewport-bounded coverage recompute — reacts to viewport (debounced moveend),
+  // selectedVertical, and data reload (`version`); NEVER per render/frame (mirrors
+  // the conflictIds "recompute on data change" posture). The (synchronous, pure)
+  // compute is deferred a macrotask so the "Computing saturation…" state paints
+  // first, and is cancellable so a rapid change never writes stale cells. Each
+  // recompute clears any transient jump announcement.
+  useEffect(() => {
+    let cancelled = false;
+    const id = setTimeout(() => {
+      if (cancelled) {
+        return;
+      }
+      setAnnouncement(null);
+      if (selectedVertical === null || viewport === null) {
+        setSaturation(EMPTY_SATURATION);
+        setComputing(false);
+        return;
+      }
+      setSaturation(
+        computeSaturation({
+          sites,
+          selectedVertical,
+          bounds: viewport.bounds,
+          zoom: viewport.zoom,
+          center: viewport.center,
+          // PR-002: only pay the ranked open-cell cost when the prospecting
+          // overlay is on (the layer is its only reactive consumer). `openCount`
+          // is computed regardless, so the summary is unaffected.
+          wantOpenCells: showProspecting,
+        }),
+      );
+      setComputing(false);
+    }, 0);
+    return () => {
+      cancelled = true;
+      clearTimeout(id);
+    };
+  }, [sites, selectedVertical, viewport, version, showProspecting]);
+
+  // AC-016: ease the map to the nearest open cell's centroid + announce it via
+  // the panel aria-live summary; the post-jump recompute clears the announce.
+  const handleJumpToOpen = useCallback(() => {
+    // The ranked open cells are precomputed only when prospecting is active
+    // (PR-002); when it is off, derive just the nearest open cell on demand from
+    // the current viewport so jump-to-open keeps working without paying the rank
+    // cost on every recompute.
+    let nearest = saturation.openCells[0];
+    if (!nearest && viewport !== null && selectedVertical !== null) {
+      nearest = computeSaturation({
+        sites,
+        selectedVertical,
+        bounds: viewport.bounds,
+        zoom: viewport.zoom,
+        center: viewport.center,
+        wantOpenCells: true,
+      }).openCells[0];
+    }
+    if (!nearest) {
+      return;
+    }
+    const [lat, lng] = cellToLatLng(nearest.h3);
+    setFlyToTarget({ lat, lng });
+    setAnnouncement('Centered on nearest open area.');
+  }, [saturation.openCells, viewport, sites, selectedVertical]);
 
   const reload = useCallback(async () => {
     const { data } = await supabase.from('site_geo').select('*').order('name');
@@ -101,7 +220,35 @@ export function App() {
   return (
     <AuthGate>
       <div className="app-shell">
-        <MapShell sites={sites} conflictIds={conflictIds} />
+        <MapShell
+          sites={sites}
+          conflictIds={conflictIds}
+          cells={saturation.cells}
+          openCells={saturation.openCells}
+          selectedVertical={selectedVertical}
+          showHeatmap={showHeatmap}
+          showProspecting={showProspecting}
+          dataVersion={version}
+          resolution={saturation.resolution}
+          onViewportChange={handleViewportChange}
+          flyToTarget={flyToTarget}
+        />
+        {/* AS-T6 / AC-021: the floating top-right saturation panel — a SEPARATE
+            surface; the left CRUD .site-panel below is untouched. */}
+        <SaturationPanel
+          selectedVertical={selectedVertical}
+          showHeatmap={showHeatmap}
+          showProspecting={showProspecting}
+          coveredCount={saturation.coveredCount}
+          openCount={saturation.openCount}
+          capped={saturation.capped}
+          computing={computing}
+          announcement={announcement}
+          onSelectVertical={handleSelectVertical}
+          onToggleHeatmap={setShowHeatmap}
+          onToggleProspecting={setShowProspecting}
+          onJumpToOpen={handleJumpToOpen}
+        />
         {/* A11Y-004: the customer forms/list panel is the primary content, so it
             is a <main> landmark (was an <aside>). The map remains the
             complementary surface. */}

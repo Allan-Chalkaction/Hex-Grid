@@ -351,3 +351,62 @@ button.btn-danger {
 .site-panel a {
   color: #1558b0;
 }
+
+/* ---------------------------------------------------------------------------
+ * Wave 4 (AS-T5 / AC-029): the floating saturation control panel.
+ * Mirrors the .site-panel glass treatment at the FREE top-right corner (the
+ * left CRUD panel is untouched). Reuses .field / .field-checkbox / .helper-text
+ * / .btn-secondary. The ONLY new hex this wave are the two sanctioned ramp stops
+ * #c6dbef / #6baed6 (set as a dynamic inline style on the legend swatches in the
+ * TSX); everything else reuses #ddd / #555 / #1558b0 / #137333.
+ * ------------------------------------------------------------------------- */
+.saturation-panel {
+  position: absolute;
+  top: 3rem;
+  right: 1rem;
+  z-index: 1;
+  width: 18rem;
+  max-height: 70vh;
+  overflow: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  padding: 0.5rem 1rem;
+  background: rgba(255, 255, 255, 0.95);
+  border: 1px solid #ddd;
+  border-radius: 8px;
+}
+
+/* The panel <h2> sits outside .panel-section, so pin it onto the type scale
+   (mirrors the .confirm-dialog h2 fix). */
+.saturation-panel h2 {
+  font-size: 1.1rem;
+  margin: 0.5rem 0;
+}
+
+.sat-legend {
+  list-style: none;
+  margin: 0.5rem 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.sat-legend li {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.875rem;
+}
+
+/* The #555 hairline delineates every swatch regardless of fill lightness (the
+   lightest ramp stop is reinforced by the numeric label, never color-alone).
+   The swatch background is set per-row as a dynamic inline style in the TSX. */
+.sat-legend__swatch {
+  width: 1rem;
+  height: 1rem;
+  border: 1px solid #555;
+  border-radius: 2px;
+  flex: 0 0 auto;
+}

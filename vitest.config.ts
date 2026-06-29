@@ -12,7 +12,13 @@ export default defineConfig({
   test: {
     // Node — these tests cover logic + DB, never React rendering (no jsdom).
     environment: 'node',
-    include: ['tests/**/*.test.ts'],
+    // Wave 4 (AS-T1+): the saturation-coverage unit/layer tests are CO-LOCATED
+    // with their source (`src/lib/coverage.test.ts`,
+    // `src/components/saturationLayer.test.ts`) per the wave spec's planned
+    // files. They are pure logic / deck.gl layer-config assertions (no React
+    // render), so the `node` environment serves them exactly as the tests/**
+    // suite. The existing tests/** glob is unchanged.
+    include: ['tests/**/*.test.ts', 'src/**/*.test.ts'],
     setupFiles: ['tests/setup/env.ts'],
     // The app singleton `src/lib/supabaseClient.ts` reads import.meta.env.VITE_*
     // at MODULE LOAD and throws if absent. Unit tests transitively import it (via

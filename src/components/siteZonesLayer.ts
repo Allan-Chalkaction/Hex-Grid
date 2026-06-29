@@ -1,5 +1,6 @@
 import { ScatterplotLayer } from 'deck.gl';
 import type { SiteGeo } from '../lib/customers';
+import { effectiveRadiusMi, MILES_TO_METERS } from '../lib/coverage';
 
 /**
  * The exclusivity-zone deck.gl layer (EX-T5 / AC-021).
@@ -31,13 +32,14 @@ export function siteZonesLayer(
   sites: SiteGeo[],
   conflictIds: Set<string>,
 ): ScatterplotLayer<ZonedSite> {
+  // AS-T1 / AC-002: the effective-zone filter now CONSUMES the shared
+  // `effectiveRadiusMi` helper (the W3 `is_zone_on && radius != null && > 0` rule
+  // is no longer inlined here). A site draws a circle iff its effective radius is
+  // positive — the exact rule the W4 coverage compute uses, so the circles and
+  // the heatmap can never drift (the drift-kill the ADR risk section mandates).
   const zoned: ZonedSite[] = sites.filter(
     (s): s is ZonedSite =>
-      s.lat != null &&
-      s.lng != null &&
-      s.is_zone_on &&
-      s.exclusivity_radius_mi != null &&
-      s.exclusivity_radius_mi > 0,
+      s.lat != null && s.lng != null && effectiveRadiusMi(s) > 0,
   );
 
   // A stable key for deck.gl's accessor-memo so a recolor (new conflictIds set)
@@ -49,7 +51,10 @@ export function siteZonesLayer(
     data: zoned,
     getPosition: (d) => [d.lng, d.lat],
     radiusUnits: 'meters',
-    getRadius: (d) => d.exclusivity_radius_mi * 1609.344,
+    // AS-T1 / AC-003: the rendered meters radius is the effective miles radius ×
+    // the shared `MILES_TO_METERS` constant — one source of truth with the
+    // coverage helper (a one-sided edit breaks the parity test).
+    getRadius: (d) => effectiveRadiusMi(d) * MILES_TO_METERS,
     stroked: true,
     filled: true,
     lineWidthUnits: 'pixels',
