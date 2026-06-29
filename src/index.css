@@ -410,3 +410,60 @@ button.btn-danger {
   border-radius: 2px;
   flex: 0 0 auto;
 }
+
+/* ---------------------------------------------------------------------------
+ * Wave 5 (RO-T6): the consolidated "Map layers" panel additions. Reuses the W4
+ * .saturation-panel shell + .field / .field-checkbox / .helper-text /
+ * .sat-legend__swatch. New classes only: the two toggle fieldsets, the vertical
+ * color legend, and the ZCTA click popup. Literal hex only (no Tailwind/vars):
+ * reuses #ddd / #555; the vertical swatch background is a sanctioned per-row
+ * dynamic inline style (the deck.gl palette color) exactly like the W4 swatch.
+ * ------------------------------------------------------------------------- */
+.layers-fieldset {
+  border: 1px solid #ddd;
+  border-radius: 6px;
+  padding: 0.5rem 0.75rem;
+  margin: 0 0 0.5rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.layers-fieldset legend {
+  font-size: 0.875rem;
+  font-weight: 600;
+  padding: 0 0.25rem;
+}
+
+/* Inside a fieldset the gap owns the rhythm; drop the standalone row margin. */
+.layers-fieldset .field-checkbox {
+  margin-bottom: 0;
+}
+
+/* The collapsible legend's summary matches the fieldset legend type scale. */
+.saturation-panel details summary {
+  font-size: 0.875rem;
+}
+
+/* The collapsible vertical color legend (mirrors .sat-legend metrics). */
+.vertical-legend {
+  list-style: none;
+  margin: 0.25rem 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.vertical-legend li {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.875rem;
+}
+
+/* The ZCTA click-to-zip popup text (near-black 0.875rem 600 on the white popup). */
+.zcta-popup {
+  font-size: 0.875rem;
+  font-weight: 600;
+}

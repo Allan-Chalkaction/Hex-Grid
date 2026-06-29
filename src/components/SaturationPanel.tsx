@@ -1,28 +1,41 @@
 import { useId } from 'react';
 import { VERTICAL_OPTIONS, verticalLabel } from '../lib/customers';
+import { verticalLegendRows, rgbCss } from '../lib/verticalStyle';
 
 /**
- * The floating top-right saturation control panel (AS-T5 — AC-021..027/029).
+ * The floating top-right "Map layers" control panel (W4 AS-T5 + RO-T6).
  *
- * A CONTROLLED component — all state (selectedVertical / showHeatmap /
- * showProspecting) is lifted to `App` (AS-T6, alongside the W3 `conflictIds`
- * pattern); this panel only renders props + calls the setters. It mirrors the
- * `.site-panel` glass treatment at the free top-right corner and leaves the left
- * CRUD panel untouched.
+ * A CONTROLLED component — all state is lifted to `App`; this panel renders props
+ * + calls the setters. Wave 5 refactors it IN PLACE (keeping the
+ * `.saturation-panel` glass shell + the left CRUD panel untouched) into the one
+ * consolidated map-layer panel: the heading is "Map layers", the shared vertical
+ * select is relabeled "Vertical" (the ONE vertical control — it drives saturation
+ * AND, when the filter is on, the pin filter), an opt-in "show only this
+ * vertical's sites" checkbox, two `<fieldset>` toggle groups (Reference /
+ * Analysis), and a collapsible vertical color legend. The W4 numeric saturation
+ * legend + `aria-live` summary + jump button are KEPT.
  *
- * The canvas heatmap is not SR-accessible by nature (the map is
- * `role="application"`); the accessible path is THIS chrome — a numeric legend
- * (never color-alone) + an `aria-live="polite"` textual summary carrying the
- * covered/open counts (AC-024/025), mirroring W3's chrome-scoped a11y. All
- * controls are native with `useId` labels and inherit the global
- * `:focus-visible`; gated toggles use the native `disabled` attribute, never
- * `aria-disabled` (AC-023/027).
+ * The W4 a11y contract is preserved VERBATIM: `useId` on every control; native
+ * `disabled` (never `aria-disabled`) on every gated control; the `aria-live`
+ * summary seeded EMPTY when no vertical is selected. The ZIP toggle is native
+ * `disabled` + `aria-describedby` a helper note when no ZCTA source is configured
+ * (graceful degrade — RO-T4).
  */
 
 export interface SaturationPanelProps {
   selectedVertical: string | null;
   showHeatmap: boolean;
   showProspecting: boolean;
+  // RO-T6: the new layer toggles (lifted to App alongside the W4 state — RO-T7).
+  // Optional with safe defaults so the panel compiles before the App wiring lands
+  // (the RO-T7 dependant); App passes all of them once wired.
+  filterToVertical?: boolean;
+  showCapitals?: boolean;
+  showMetros?: boolean;
+  showZcta?: boolean;
+  showZones?: boolean;
+  /** Whether a ZCTA tile source is configured (drives the ZIP toggle enable). */
+  zctaConfigured?: boolean;
   coveredCount: number;
   openCount: number;
   capped: boolean;
@@ -33,10 +46,15 @@ export interface SaturationPanelProps {
   onSelectVertical: (vertical: string | null) => void;
   onToggleHeatmap: (on: boolean) => void;
   onToggleProspecting: (on: boolean) => void;
+  onToggleFilter?: (on: boolean) => void;
+  onToggleCapitals?: (on: boolean) => void;
+  onToggleMetros?: (on: boolean) => void;
+  onToggleZcta?: (on: boolean) => void;
+  onToggleZones?: (on: boolean) => void;
   onJumpToOpen: () => void;
 }
 
-/** The discrete legend rows (swatch hex + numeric label) — ui-spec §4/§8. */
+/** The discrete saturation legend rows (swatch hex + numeric label) — W4. */
 const LEGEND_ROWS: ReadonlyArray<{ hex: string; label: string }> = [
   { hex: '#137333', label: 'Open (0 zones)' },
   { hex: '#c6dbef', label: '1 zone' },
@@ -48,6 +66,12 @@ export function SaturationPanel({
   selectedVertical,
   showHeatmap,
   showProspecting,
+  filterToVertical = false,
+  showCapitals = false,
+  showMetros = false,
+  showZcta = false,
+  showZones = true,
+  zctaConfigured = false,
   coveredCount,
   openCount,
   capped,
@@ -56,22 +80,30 @@ export function SaturationPanel({
   onSelectVertical,
   onToggleHeatmap,
   onToggleProspecting,
+  onToggleFilter = () => {},
+  onToggleCapitals = () => {},
+  onToggleMetros = () => {},
+  onToggleZcta = () => {},
+  onToggleZones = () => {},
   onJumpToOpen,
 }: SaturationPanelProps) {
   const verticalId = useId();
+  const filterId = useId();
+  const capitalsId = useId();
+  const metrosId = useId();
+  const zctaId = useId();
+  const zctaNoteId = useId();
+  const zonesId = useId();
   const heatmapId = useId();
   const prospectingId = useId();
+  const legendId = useId();
 
   const noVertical = selectedVertical === null;
   const label = verticalLabel(selectedVertical);
 
-  // The single aria-live summary line — the SR carrier of the canvas (AC-025) +
-  // the computing/cap/empty states (AC-026). A transient action announcement
-  // (AS-T6 jump) takes precedence until the next recompute clears it. A11Y-002:
-  // when no vertical is selected the live region is SEEDED EMPTY (the W3
-  // empty-seed live-region pattern — so a screen reader does not auto-announce at
-  // first paint); the "Select a vertical…" prompt is surfaced as STATIC text
-  // instead (rendered below, outside the live region).
+  // The single aria-live summary line (W4 AC-025/026). A11Y-002: seeded EMPTY
+  // when no vertical is selected (the screen reader does not auto-announce at
+  // first paint); the "Select a vertical…" prompt is STATIC text below.
   let summary = '';
   if (!noVertical) {
     if (announcement) {
@@ -87,17 +119,18 @@ export function SaturationPanel({
     }
   }
 
-  // A11Y-001: the legend is the key for BOTH the heatmap buckets AND the green
-  // prospect open-cell outlines (the "Open (0 zones)" row), so it must show
-  // whenever EITHER overlay is on — not heatmap alone.
+  // A11Y-001 (W4): the numeric legend is the key for BOTH the heatmap buckets AND
+  // the green prospect outlines, so it shows whenever EITHER overlay is on.
   const showLegend = !noVertical && (showHeatmap || showProspecting);
 
+  const legendRows = verticalLegendRows();
+
   return (
-    <aside className="saturation-panel" aria-label="Saturation controls">
-      <h2>Saturation</h2>
+    <aside className="saturation-panel" aria-label="Map layer controls">
+      <h2>Map layers</h2>
 
       <div className="field">
-        <label htmlFor={verticalId}>Saturation vertical</label>
+        <label htmlFor={verticalId}>Vertical</label>
         <select
           id={verticalId}
           value={selectedVertical ?? ''}
@@ -114,33 +147,115 @@ export function SaturationPanel({
 
       <div className="field-checkbox">
         <input
-          id={heatmapId}
+          id={filterId}
           type="checkbox"
-          checked={showHeatmap}
+          checked={filterToVertical}
           disabled={noVertical}
-          onChange={(e) => onToggleHeatmap(e.target.checked)}
+          onChange={(e) => onToggleFilter(e.target.checked)}
         />
-        <label htmlFor={heatmapId}>Show saturation heatmap</label>
+        <label htmlFor={filterId}>Show only this vertical&apos;s sites</label>
       </div>
 
-      <div className="field-checkbox">
-        <input
-          id={prospectingId}
-          type="checkbox"
-          checked={showProspecting}
-          disabled={noVertical}
-          onChange={(e) => onToggleProspecting(e.target.checked)}
-        />
-        <label htmlFor={prospectingId}>Highlight open areas</label>
-      </div>
+      <fieldset className="layers-fieldset">
+        <legend>Reference layers</legend>
+
+        <div className="field-checkbox">
+          <input
+            id={capitalsId}
+            type="checkbox"
+            checked={showCapitals}
+            onChange={(e) => onToggleCapitals(e.target.checked)}
+          />
+          <label htmlFor={capitalsId}>State capitals</label>
+        </div>
+
+        <div className="field-checkbox">
+          <input
+            id={metrosId}
+            type="checkbox"
+            checked={showMetros}
+            onChange={(e) => onToggleMetros(e.target.checked)}
+          />
+          <label htmlFor={metrosId}>Metro areas</label>
+        </div>
+
+        <div className="field-checkbox">
+          <input
+            id={zctaId}
+            type="checkbox"
+            checked={showZcta}
+            disabled={!zctaConfigured}
+            aria-describedby={!zctaConfigured ? zctaNoteId : undefined}
+            onChange={(e) => onToggleZcta(e.target.checked)}
+          />
+          <label htmlFor={zctaId}>ZIP / ZCTA boundaries</label>
+        </div>
+        {!zctaConfigured && (
+          <p id={zctaNoteId} className="helper-text">
+            Configure a ZCTA tile source (VITE_ZCTA_TILES_URL) to enable.
+          </p>
+        )}
+      </fieldset>
+
+      <fieldset className="layers-fieldset">
+        <legend>Analysis layers</legend>
+
+        <div className="field-checkbox">
+          <input
+            id={zonesId}
+            type="checkbox"
+            checked={showZones}
+            onChange={(e) => onToggleZones(e.target.checked)}
+          />
+          <label htmlFor={zonesId}>Site zones</label>
+        </div>
+
+        <div className="field-checkbox">
+          <input
+            id={heatmapId}
+            type="checkbox"
+            checked={showHeatmap}
+            disabled={noVertical}
+            onChange={(e) => onToggleHeatmap(e.target.checked)}
+          />
+          <label htmlFor={heatmapId}>Saturation heatmap</label>
+        </div>
+
+        <div className="field-checkbox">
+          <input
+            id={prospectingId}
+            type="checkbox"
+            checked={showProspecting}
+            disabled={noVertical}
+            onChange={(e) => onToggleProspecting(e.target.checked)}
+          />
+          <label htmlFor={prospectingId}>Highlight open areas</label>
+        </div>
+      </fieldset>
+
+      <details>
+        <summary>Vertical colors</summary>
+        <ul className="vertical-legend" id={legendId} role="list">
+          {legendRows.map((row) => (
+            <li key={row.label}>
+              {/* The swatch is decorative; the text label is the SR carrier
+                  (never color-alone). The dynamic per-vertical color is the one
+                  sanctioned data-driven inline style (mirrors the W4 swatch). */}
+              <span
+                className="sat-legend__swatch"
+                aria-hidden="true"
+                style={{ background: rgbCss(row.color) }}
+              />
+              {row.label}
+            </li>
+          ))}
+        </ul>
+      </details>
 
       {showLegend && (
-        <ul className="sat-legend">
+        <ul className="sat-legend" role="list">
           {LEGEND_ROWS.map((row) => (
             <li key={row.label}>
-              {/* The swatch is decorative; the numeric label is the SR carrier
-                  (never color-alone). The dynamic bucket color is the one
-                  sanctioned data-driven inline style (AC-029). */}
               <span
                 className="sat-legend__swatch"
                 aria-hidden="true"
