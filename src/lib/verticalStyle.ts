@@ -3,7 +3,7 @@ import { VERTICAL_OPTIONS } from './customers';
 /**
  * The stable per-vertical categorical color palette (RO-T1 — AC-001/002/003).
  *
- * `VERTICAL_COLORS` keys on the 8 controlled `VERTICAL_OPTIONS` tokens (imported,
+ * `VERTICAL_COLORS` keys on the 9 controlled `VERTICAL_OPTIONS` tokens (imported,
  * NEVER re-authored) → a stable `[r,g,b]` deck.gl fill, with `VERTICAL_NEUTRAL`
  * the fallback for a `null`/unknown vertical. It is a MODULE-LEVEL const, so the
  * color for a given token is stable by construction across renders/sessions.

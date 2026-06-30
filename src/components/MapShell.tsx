@@ -10,26 +10,23 @@ import type { SiteGeo } from '../lib/customers';
 import type { CoverageCell, LatLng, ViewportBounds } from '../lib/coverage';
 
 /**
- * The map shell (W1 reactive seam + W4 saturation mount + W5 reference overlays).
+ * The map shell (W1 reactive seam + W4 saturation mount + ZCTA overlay).
  *
  * Renders a MapLibre map centered on CONUS using the OpenFreeMap `liberty` style
  * (no API key) and mounts a deck.gl `MapboxOverlay`. The overlay is held in a
  * ref created ONCE on map init and PERSISTS across renders; on every data change
  * the overlay's layers are refreshed via `overlay.setProps(...)`.
  *
- * Wave 5 (reference-overlays — RO-T5) extends the reactive seam:
- *   - **Color-by-vertical pins + opt-in filter** via the new `sitePinsLayer`
- *     signature (`selectedVertical` / `filterToVertical`).
- *   - **Capitals + metros label layers** appended LAST in the deck array (labels
- *     above pins; capitals after metros so a capital wins a collision). Metros are
- *     gated below ~zoom 5 (`shouldShowMetros`) off the lifted viewport `zoom`.
+ * The reactive seam carries:
+ *   - **Color-by-vertical pins gated by the multi-select** via the `sitePinsLayer`
+ *     signature (`selectedVerticals` — empty => no pins).
  *   - **A `Site zones` toggle** (`showZones`, default on) — the W3 zone circles,
- *     now conditionally spread (additive; no W3/W4 logic change).
+ *     conditionally spread (additive; no W3/W4 logic change).
  *   - **The ZCTA boundary overlay** mounted as a MapLibre-NATIVE source (beneath
  *     the whole deck overlay → ZIP below pins), env-gated + graceful-degrade.
  *
- * All reference layers are conditionally spread, so with every reference toggle
- * off the deck array is byte-identical to the W4 composition (AC-019).
+ * The analysis overlays are conditionally spread, so with them off the deck array
+ * is byte-identical to the base composition (AC-019).
  */
 
 export function MapShell({
@@ -37,15 +34,11 @@ export function MapShell({
   conflictIds,
   cells = [],
   openCells = [],
-  selectedVertical = null,
+  selectedVerticals = [],
   showHeatmap = false,
   showProspecting = false,
   showZones = true,
-  filterToVertical = false,
-  showCapitals = false,
-  showMetros = false,
   showZcta = false,
-  zoom = 4,
   dataVersion = 0,
   resolution = 0,
   onViewportChange,
@@ -55,15 +48,11 @@ export function MapShell({
   conflictIds: Set<string>;
   cells?: CoverageCell[];
   openCells?: CoverageCell[];
-  selectedVertical?: string | null;
+  selectedVerticals?: string[];
   showHeatmap?: boolean;
   showProspecting?: boolean;
   showZones?: boolean;
-  filterToVertical?: boolean;
-  showCapitals?: boolean;
-  showMetros?: boolean;
   showZcta?: boolean;
-  zoom?: number;
   dataVersion?: number;
   resolution?: number;
   onViewportChange?: (
@@ -164,14 +153,10 @@ export function MapShell({
         conflictIds,
         cells,
         openCells,
-        selectedVertical,
+        selectedVerticals,
         showHeatmap,
         showProspecting,
         showZones,
-        filterToVertical,
-        showCapitals,
-        showMetros,
-        zoom,
         dataVersion,
         resolution,
       }),
@@ -181,14 +166,10 @@ export function MapShell({
     conflictIds,
     cells,
     openCells,
-    selectedVertical,
+    selectedVerticals,
     showHeatmap,
     showProspecting,
     showZones,
-    filterToVertical,
-    showCapitals,
-    showMetros,
-    zoom,
     dataVersion,
     resolution,
   ]);

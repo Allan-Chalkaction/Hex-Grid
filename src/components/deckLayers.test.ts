@@ -3,11 +3,12 @@ import { buildDeckLayers, type DeckLayerOptions } from './deckLayers';
 import type { SiteGeo } from '../lib/customers';
 
 /**
- * RO-T5 z-order tests (AC-019). Pure: the builder returns deck.gl layers that
- * construct without a GL context, so the resulting layer-id ORDER is inspectable
- * in node (mirrors saturationLayer.test). The byte-identical-first-paint
- * invariant is asserted by comparing the reference-toggles-off array to the W4
- * composition.
+ * Z-order tests (AC-019), updated for the CG multi-select gate. Pure: the
+ * builder returns deck.gl layers that construct without a GL context, so the
+ * resulting layer-id ORDER is inspectable in node (mirrors saturationLayer.test).
+ * The byte-identical-first-paint invariant is asserted by comparing the
+ * analysis-overlays-off array to the base composition. `selectedVerticals` now
+ * drives pin visibility + saturation (its first element).
  */
 
 const site = (id: string, vertical: string | null): SiteGeo => ({
@@ -29,14 +30,10 @@ const base: DeckLayerOptions = {
   conflictIds: new Set<string>(),
   cells: [],
   openCells: [],
-  selectedVertical: null,
+  selectedVerticals: [],
   showHeatmap: false,
   showProspecting: false,
   showZones: true,
-  filterToVertical: false,
-  showCapitals: false,
-  showMetros: false,
-  zoom: 4,
   dataVersion: 0,
   resolution: 0,
 };
@@ -44,77 +41,55 @@ const base: DeckLayerOptions = {
 const ids = (o: DeckLayerOptions): string[] =>
   buildDeckLayers(o).map((l) => l.id);
 
-describe('buildDeckLayers z-order (RO-T5 / AC-019)', () => {
-  it('reference toggles off → equals the W4 composition (zones, pins)', () => {
+describe('buildDeckLayers z-order (AC-019)', () => {
+  it('analysis overlays off → equals the base composition (zones, pins)', () => {
     expect(ids(base)).toEqual(['site-zones', 'site-pins']);
   });
 
-  it('with wash + prospect on (vertical selected) → W4 order wash→prospect→zones→pins', () => {
+  it('with wash + prospect on (vertical selected) → order wash→prospect→zones→pins', () => {
     expect(
       ids({
         ...base,
-        selectedVertical: 'gas',
+        selectedVerticals: ['gas'],
         showHeatmap: true,
         showProspecting: true,
       }),
     ).toEqual(['saturation', 'prospect', 'site-zones', 'site-pins']);
   });
 
-  it('labels are LAST and metros before capitals (labels above pins; capital wins)', () => {
-    expect(
-      ids({
-        ...base,
-        showCapitals: true,
-        showMetros: true,
-        zoom: 6,
-      }),
-    ).toEqual(['site-zones', 'site-pins', 'reference-metros', 'reference-capitals']);
-  });
-
-  it('metros are gated below ~zoom 5 even when the toggle is on', () => {
-    expect(ids({ ...base, showMetros: true, zoom: 4 })).toEqual([
-      'site-zones',
-      'site-pins',
-    ]);
-    expect(ids({ ...base, showMetros: true, zoom: 5 })).toEqual([
-      'site-zones',
-      'site-pins',
-      'reference-metros',
-    ]);
-  });
-
   it('Site zones toggle off removes the zones layer (pins remain)', () => {
     expect(ids({ ...base, showZones: false })).toEqual(['site-pins']);
   });
 
-  it('full stack on at zoom>=5 → wash→prospect→zones→pins→metros→capitals', () => {
+  it('full stack on → wash→prospect→zones→pins', () => {
     expect(
       ids({
         ...base,
-        selectedVertical: 'gas',
+        selectedVerticals: ['gas'],
         showHeatmap: true,
         showProspecting: true,
-        showCapitals: true,
-        showMetros: true,
-        zoom: 7,
       }),
-    ).toEqual([
-      'saturation',
-      'prospect',
-      'site-zones',
-      'site-pins',
-      'reference-metros',
-      'reference-capitals',
-    ]);
+    ).toEqual(['saturation', 'prospect', 'site-zones', 'site-pins']);
   });
 
-  it('the pin filter narrows pin data via the one shared selectedVertical', () => {
+  it('the multi-select gates BOTH pins and zones to the visible sites', () => {
     const layers = buildDeckLayers({
       ...base,
-      selectedVertical: 'gas',
-      filterToVertical: true,
+      selectedVerticals: ['gas'],
     });
     const pins = layers.find((l) => l.id === 'site-pins');
+    const zones = layers.find((l) => l.id === 'site-zones');
+    // Only the gas site (a) is visible → its pin AND its zone; the grocery site
+    // (b) is hidden from both layers.
     expect((pins!.props.data as SiteGeo[]).map((s) => s.id)).toEqual(['a']);
+    expect((zones!.props.data as SiteGeo[]).map((s) => s.id)).toEqual(['a']);
+  });
+
+  it('empty selection → pins and zones both empty (just the basemap)', () => {
+    const layers = buildDeckLayers(base);
+    const pins = layers.find((l) => l.id === 'site-pins');
+    const zones = layers.find((l) => l.id === 'site-zones');
+    expect((pins!.props.data as SiteGeo[])).toEqual([]);
+    expect((zones!.props.data as SiteGeo[])).toEqual([]);
   });
 });

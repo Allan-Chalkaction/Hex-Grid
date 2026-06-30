@@ -73,9 +73,11 @@ describe('zctaSourceLabel (EH-T3 / AC-009)', () => {
   });
 });
 
-describe('SaturationPanel toggle consumes zctaSourceLabel (EH-T3 / AC-010)', () => {
+describe('MapDrawer ZIP toggle consumes zctaSourceLabel (EH-T3 / AC-010)', () => {
+  // The ZIP toggle moved from the retired SaturationPanel into the consolidated
+  // left MapDrawer; the helper + a11y wiring are preserved verbatim.
   const src = readFileSync(
-    fileURLToPath(new URL('./SaturationPanel.tsx', import.meta.url)),
+    fileURLToPath(new URL('./MapDrawer.tsx', import.meta.url)),
     'utf8',
   );
 

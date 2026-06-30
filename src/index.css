@@ -46,29 +46,146 @@ body,
   border-bottom: 1px solid #ddd;
 }
 
-.site-panel {
+/* ---------------------------------------------------------------------------
+ * CG left-menu redesign: the ONE consolidated left drawer. Reuses the prior
+ * .site-panel / .saturation-panel glass idiom (white-glass, #ddd border) but as
+ * a single full-height left panel that slides off-screen on auto-retract and
+ * back on hover / handle. Reuses .field / .field-checkbox / .helper-text /
+ * .layers-fieldset / .sat-legend / .vertical-legend. Literal hex only (no
+ * Tailwind / CSS-vars).
+ * ------------------------------------------------------------------------- */
+.map-drawer {
   position: absolute;
-  top: 3rem;
-  left: 1rem;
-  z-index: 1;
-  /* M-5 (light fix): widen to 22rem and gap the stacked surfaces so the
-     inline lat/lng fields aren't cramped (full forms-into-dialog deferred). */
-  width: 22rem;
-  max-height: 70vh;
+  top: 0;
+  left: 0;
+  bottom: 0;
+  z-index: 2;
+  width: 23rem;
+  max-width: 92vw;
+  max-height: 100vh;
   overflow: auto;
   display: flex;
   flex-direction: column;
   gap: 1rem;
-  padding: 0.5rem 1rem;
-  background: rgba(255, 255, 255, 0.95);
-  border: 1px solid #ddd;
-  border-radius: 8px;
+  padding: 0.5rem 1rem 1.5rem;
+  background: rgba(255, 255, 255, 0.96);
+  border-right: 1px solid #ddd;
+  box-shadow: 0 0 12px rgba(0, 0, 0, 0.12);
+  transform: translateX(0);
+  transition: transform 280ms ease;
 }
 
-/* M-7: the form submit buttons carry no .btn-* class; give them the same
-   pointer affordance as the classed buttons. */
-.site-panel button[type='submit'] {
+/* Retracted: slide fully off-screen to the left. The selected verticals' sites
+   stay on the map — only the menu hides. */
+.map-drawer--closed {
+  transform: translateX(-100%);
+}
+
+.map-drawer h2 {
+  font-size: 1.1rem;
+  margin: 0.5rem 0;
+}
+
+.map-drawer__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+
+/* The right-side header cluster: the "Keep panel open" control + the Hide
+   button, grouped so the header stays a clean two-end layout. */
+.map-drawer__header-controls {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.map-drawer__keep-open {
+  font-size: 0.8rem;
+  white-space: nowrap;
+}
+
+.map-drawer details summary {
+  font-size: 0.875rem;
+}
+
+/* The per-vertical color swatch sits inside the chooser label, before the text. */
+.vertical-chooser__swatch {
+  vertical-align: middle;
+  margin-right: 0.25rem;
+}
+
+.vertical-chooser .field-checkbox label {
+  display: inline-flex;
+  align-items: center;
+}
+
+/* The CRUD block stacks the add-form / CSV import / list with the prior rhythm. */
+.map-drawer__crud {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  margin-top: 0.5rem;
+}
+
+/* The form submit buttons carry no .btn-* class; give them the same pointer
+   affordance as the classed buttons. */
+.map-drawer button[type='submit'] {
   cursor: pointer;
+}
+
+/* The persistent reopen / collapse handle — anchored to the viewport left edge,
+   OUTSIDE the sliding panel so it stays operable when the panel is off-screen.
+   This is the ACCESSIBLE reopen (keyboard users can't hover). */
+.map-drawer__handle {
+  position: absolute;
+  top: 50%;
+  left: 0;
+  z-index: 3;
+  transform: translateY(-50%);
+  width: 1.5rem;
+  height: 3rem;
+  padding: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.1rem;
+  line-height: 1;
+  cursor: pointer;
+  background: rgba(255, 255, 255, 0.96);
+  border: 1px solid #ddd;
+  border-left: none;
+  border-radius: 0 6px 6px 0;
+  transition: left 280ms ease;
+}
+
+/* When open the handle rides the drawer's right edge. The drawer is
+   `width: 23rem` but clamped by `max-width: 92vw`, so the handle offset must
+   clamp the SAME way — otherwise on a narrow viewport the open handle floats
+   off the actual drawer edge (ui-review M1 / CR-001). */
+.map-drawer__handle--open {
+  left: min(23rem, 92vw);
+}
+
+/* The left-edge hover hot-zone (pointer reopen) — a thin strip over the map's
+   left edge, rendered only while the drawer is closed. */
+.map-drawer__hotzone {
+  position: absolute;
+  top: 0;
+  left: 0;
+  bottom: 0;
+  z-index: 2;
+  width: 1rem;
+}
+
+/* Respect prefers-reduced-motion: no/instant slide (the retract still happens,
+   just without the animation). */
+@media (prefers-reduced-motion: reduce) {
+  .map-drawer,
+  .map-drawer__handle {
+    transition: none;
+  }
 }
 
 .auth-gate {
@@ -348,42 +465,19 @@ button.btn-danger {
  * rather than the lighter #1a73e8 (which is the :focus-visible OUTLINE — a
  * non-text UI component at 3:1, intentionally left as-is). */
 .app-link,
-.site-panel a {
+.map-drawer a {
   color: #1558b0;
 }
 
 /* ---------------------------------------------------------------------------
- * Wave 4 (AS-T5 / AC-029): the floating saturation control panel.
- * Mirrors the .site-panel glass treatment at the FREE top-right corner (the
- * left CRUD panel is untouched). Reuses .field / .field-checkbox / .helper-text
- * / .btn-secondary. The ONLY new hex this wave are the two sanctioned ramp stops
- * #c6dbef / #6baed6 (set as a dynamic inline style on the legend swatches in the
- * TSX); everything else reuses #ddd / #555 / #1558b0 / #137333.
+ * Wave 4 (AS-T5 / AC-029): the saturation legend + control vocabulary.
+ * Originally a floating top-right panel; the CG redesign folds these controls
+ * into the single left .map-drawer (the .saturation-panel container rule is
+ * retired). The legend / ramp-swatch classes below are REUSED verbatim by the
+ * drawer. The only non-standard hex are the two sanctioned ramp stops #c6dbef /
+ * #6baed6 (a dynamic inline style on the legend swatches in the TSX); everything
+ * else reuses #ddd / #555 / #1558b0 / #137333.
  * ------------------------------------------------------------------------- */
-.saturation-panel {
-  position: absolute;
-  top: 3rem;
-  right: 1rem;
-  z-index: 1;
-  width: 18rem;
-  max-height: 70vh;
-  overflow: auto;
-  display: flex;
-  flex-direction: column;
-  gap: 0.5rem;
-  padding: 0.5rem 1rem;
-  background: rgba(255, 255, 255, 0.95);
-  border: 1px solid #ddd;
-  border-radius: 8px;
-}
-
-/* The panel <h2> sits outside .panel-section, so pin it onto the type scale
-   (mirrors the .confirm-dialog h2 fix). */
-.saturation-panel h2 {
-  font-size: 1.1rem;
-  margin: 0.5rem 0;
-}
-
 .sat-legend {
   list-style: none;
   margin: 0.5rem 0;
@@ -438,11 +532,6 @@ button.btn-danger {
 /* Inside a fieldset the gap owns the rhythm; drop the standalone row margin. */
 .layers-fieldset .field-checkbox {
   margin-bottom: 0;
-}
-
-/* The collapsible legend's summary matches the fieldset legend type scale. */
-.saturation-panel details summary {
-  font-size: 0.875rem;
 }
 
 /* The collapsible vertical color legend (mirrors .sat-legend metrics). */

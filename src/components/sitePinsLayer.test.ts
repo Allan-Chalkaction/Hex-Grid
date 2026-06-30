@@ -4,9 +4,11 @@ import { VERTICAL_COLORS, VERTICAL_NEUTRAL } from '../lib/verticalStyle';
 import type { SiteGeo } from '../lib/customers';
 
 /**
- * RO-T2 layer-config tests (AC-004/005/006). Pure: a deck.gl ScatterplotLayer
- * constructs without a GL context, so its `data` + `getFillColor` accessor are
- * inspectable in the node env (mirrors saturationLayer.test.ts).
+ * sitePinsLayer layer-config tests (CG left-menu redesign — multi-select gate).
+ * Pure: a deck.gl ScatterplotLayer constructs without a GL context, so its
+ * `data` + `getFillColor` accessor are inspectable in the node env (mirrors
+ * saturationLayer.test.ts). The pin set is now gated by `selectedVerticals`
+ * (default [] => no pins); coloring-by-vertical of the visible set is unchanged.
  */
 
 function site(
@@ -40,10 +42,11 @@ const sites: SiteGeo[] = [
 
 type Located = SiteGeo & { lat: number; lng: number };
 
-describe('sitePinsLayer color-by-vertical (RO-T2 / AC-004)', () => {
+describe('sitePinsLayer color-by-vertical', () => {
+  // The fill accessor is independent of the visible-data set; a broad selection
+  // gives a non-empty data set for the located-filter assertion.
   const layer = sitePinsLayer(sites, {
-    selectedVertical: null,
-    filterToVertical: false,
+    selectedVerticals: ['gas', 'grocery', 'pharmacy'],
   });
   const getFillColor = layer.props.getFillColor as unknown as (
     d: Located,
@@ -71,65 +74,57 @@ describe('sitePinsLayer color-by-vertical (RO-T2 / AC-004)', () => {
     expect(getFillColor(site('a', 'gas', 40, -100) as Located)).toHaveLength(3);
   });
 
-  it('filters out unlocated sites (lat/lng null) in every case', () => {
+  it('renders only located sites whose vertical is selected', () => {
+    // c is null-vertical (never selectable); e/f are unlocated.
     const data = layer.props.data as Located[];
-    expect(data.map((d) => d.id).sort()).toEqual(['a', 'b', 'c', 'd']);
+    expect(data.map((d) => d.id).sort()).toEqual(['a', 'b', 'd']);
     expect(data.some((d) => d.lat == null || d.lng == null)).toBe(false);
   });
 });
 
-describe('sitePinsLayer opt-in filter (RO-T2 / AC-005)', () => {
-  it('(a) filterToVertical on + gas selected → only located gas sites', () => {
-    const layer = sitePinsLayer(sites, {
-      selectedVertical: 'gas',
-      filterToVertical: true,
-    });
+describe('sitePinsLayer multi-select gate', () => {
+  it('(a) empty selection → NO pins (default load shows just the basemap)', () => {
+    const layer = sitePinsLayer(sites, { selectedVerticals: [] });
+    expect((layer.props.data as Located[])).toEqual([]);
+  });
+
+  it('(b) one vertical selected → only that vertical\'s located sites', () => {
+    const layer = sitePinsLayer(sites, { selectedVerticals: ['gas'] });
     const data = layer.props.data as Located[];
     expect(data.map((d) => d.id).sort()).toEqual(['a', 'd']);
     expect(data.every((d) => d.vertical === 'gas')).toBe(true);
   });
 
-  it('(b) filterToVertical off → all located sites (still colored)', () => {
+  it('(c) multiple verticals selected → the union of their located sites', () => {
     const layer = sitePinsLayer(sites, {
-      selectedVertical: 'gas',
-      filterToVertical: false,
+      selectedVerticals: ['gas', 'grocery'],
     });
     const data = layer.props.data as Located[];
-    expect(data.map((d) => d.id).sort()).toEqual(['a', 'b', 'c', 'd']);
+    expect(data.map((d) => d.id).sort()).toEqual(['a', 'b', 'd']);
   });
 
-  it('(c) filterToVertical on but no vertical selected → all located sites', () => {
-    const layer = sitePinsLayer(sites, {
-      selectedVertical: null,
-      filterToVertical: true,
-    });
+  it('(d) a null-vertical site never renders even when others are selected', () => {
+    const layer = sitePinsLayer(sites, { selectedVerticals: ['gas'] });
     const data = layer.props.data as Located[];
-    expect(data.map((d) => d.id).sort()).toEqual(['a', 'b', 'c', 'd']);
+    expect(data.some((d) => d.id === 'c')).toBe(false);
   });
 });
 
-describe('sitePinsLayer stability (RO-T2 / AC-006)', () => {
+describe('sitePinsLayer stability', () => {
   it('keeps id "site-pins" and a CONSTANT updateTriggers.getFillColor key', () => {
-    const l1 = sitePinsLayer(sites, {
-      selectedVertical: 'gas',
-      filterToVertical: true,
-    });
-    const l2 = sitePinsLayer(sites, {
-      selectedVertical: null,
-      filterToVertical: false,
-    });
+    const l1 = sitePinsLayer(sites, { selectedVerticals: ['gas'] });
+    const l2 = sitePinsLayer(sites, { selectedVerticals: [] });
     expect(l1.props.id).toBe('site-pins');
     expect(l2.props.id).toBe('site-pins');
     expect(l1.props.updateTriggers.getFillColor).toBe('vertical-palette-v1');
-    // The key is a constant — identical regardless of selection/filter inputs.
+    // The key is a constant — identical regardless of the selection input.
     expect(l1.props.updateTriggers.getFillColor).toBe(
       l2.props.updateTriggers.getFillColor,
     );
   });
 
-  it('defaults to no-filter all-located when options are omitted', () => {
+  it('defaults to the empty (no-pins) set when options are omitted', () => {
     const layer = sitePinsLayer(sites);
-    const data = layer.props.data as Located[];
-    expect(data.map((d) => d.id).sort()).toEqual(['a', 'b', 'c', 'd']);
+    expect((layer.props.data as Located[])).toEqual([]);
   });
 });
