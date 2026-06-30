@@ -88,6 +88,29 @@ export function verticalLabel(token: string | null): string {
   return VERTICAL_OPTIONS.find((o) => o.value === token)?.label ?? token;
 }
 
+/**
+ * The hover-card label for a site's restricted-area (exclusivity) radius (the CG
+ * map hover card). A site with NO active zone — `is_zone_on` false, or a null /
+ * non-positive `exclusivity_radius_mi` — has no restricted area. Otherwise the
+ * radius renders in miles with float artifacts + trailing zeros stripped:
+ * 0.5 → "0.5 mi", 1 → "1 mi", 1.5 → "1.5 mi", 3 → "3 mi". Mirrors the locked-off
+ * semantic the radius write path uses (updateSiteRadius: null/"Off" = no zone).
+ * Pure (no I/O) so it unit-tests in the node env. Accepts a structural subset of
+ * SiteGeo so any zone-bearing row (or a test fixture) satisfies it.
+ */
+export function restrictedAreaLabel(site: {
+  exclusivity_radius_mi: number | null;
+  is_zone_on: boolean;
+}): string {
+  const mi = site.exclusivity_radius_mi;
+  if (!site.is_zone_on || mi == null || mi <= 0) {
+    return 'No restricted area';
+  }
+  // parseFloat(toFixed(2)) collapses 2.50 → "2.5" and 1.0 → "1" without a
+  // locale-formatter dependency (the radii are small fixed-step miles).
+  return `${parseFloat(mi.toFixed(2))} mi`;
+}
+
 /** Per-site outcome surfaced to the form for the geocode-status UI (AC-012). */
 export interface SiteOutcome {
   name: string;

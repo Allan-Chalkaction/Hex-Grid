@@ -1,4 +1,4 @@
-import type { Layer } from 'deck.gl';
+import type { Layer, PickingInfo } from 'deck.gl';
 import { sitePinsLayer } from './sitePinsLayer';
 import { siteZonesLayer } from './siteZonesLayer';
 import { saturationLayer, prospectLayer } from './saturationLayer';
@@ -27,6 +27,12 @@ export interface DeckLayerOptions {
   showZones: boolean;
   dataVersion: number;
   resolution: number;
+  /**
+   * Optional pin-hover callback (CG hover card) forwarded to `sitePinsLayer`.
+   * Omitted (the default) → no hover behavior, so the byte-identical-first-paint
+   * invariant for the rest of the array is unaffected.
+   */
+  onSitePinHover?: (info: PickingInfo) => void;
 }
 
 /**
@@ -63,6 +69,9 @@ export function buildDeckLayers(o: DeckLayerOptions): Layer[] {
       ? [prospectLayer(o.openCells, trigger)]
       : []),
     ...(o.showZones ? [siteZonesLayer(visibleSites, o.conflictIds)] : []),
-    sitePinsLayer(o.sites, { selectedVerticals: o.selectedVerticals }),
+    sitePinsLayer(o.sites, {
+      selectedVerticals: o.selectedVerticals,
+      onHover: o.onSitePinHover,
+    }),
   ];
 }
