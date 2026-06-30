@@ -24,18 +24,27 @@ import { CustomerList } from './CustomerList';
  * Behavior: the drawer is OPEN on load and AUTO-RETRACTS after 15 s of no
  * interaction (slides off-screen left). Any hover / focus / input / click inside
  * resets the 15 s timer, and it never retracts while hovered or while it contains
- * focus (so it can't vanish mid-use). It reopens via (a) a left-edge hover
- * hot-zone over the map and (b) a persistent, keyboard-focusable handle button —
- * the accessible reopen. Retracting hides only the menu; the selected verticals'
+ * focus (so it can't vanish mid-use). A persistent "Keep panel open" checkbox in
+ * the header DISABLES the auto-retract entirely while checked (default unchecked,
+ * preserving the 15 s behavior). It reopens via (a) a left-edge hover hot-zone
+ * over the map and (b) a persistent, keyboard-focusable handle button — the
+ * accessible reopen. Retracting hides only the menu; the selected verticals'
  * sites stay on the map.
  *
  * a11y contract (preserved from W3/W4/W5): `useId` on every control; native
  * `disabled` (never `aria-disabled`) on every gated control; the `aria-live`
  * summary seeded EMPTY when no active vertical; the ZIP toggle native-`disabled`
  * + `aria-describedby` its helper note when unconfigured; the drawer is a labeled
- * landmark (`<main aria-label="Map menu">`); the slide respects
+ * complementary landmark (`<aside aria-label="Map menu">` — a control panel, not
+ * the page's dominant content, which is the map); the slide respects
  * `prefers-reduced-motion` (CSS); the closed drawer is `inert` (not a tab trap /
  * not focusable off-screen), and the reopen handle is focusable + labeled.
+ *
+ * Focus management (WCAG 2.4.3): activating the internal "Hide" button moves
+ * focus to the now-visible reopen handle (the drawer becomes `inert`, so focus
+ * cannot stay inside it); opening the drawer VIA THE HANDLE moves focus to the
+ * first control inside (the first vertical checkbox). A hover-reopen (hot-zone)
+ * does NOT steal focus.
  */
 
 /** Retract after this long with no interaction (and not hovered/focused). */
@@ -123,12 +132,22 @@ export function MapDrawer({
   const heatmapId = useId();
   const prospectingId = useId();
   const legendId = useId();
+  const keepOpenId = useId();
 
   // ---- Auto-retract / reopen state ----
   const [open, setOpen] = useState(true);
+  // When checked, the drawer never auto-hides (A11Y-001 / WCAG 2.2.1) — gives a
+  // user control over the 15 s timer. Default UNCHECKED so the requested 15 s
+  // behavior is the out-of-box default. Session-scoped component state.
+  const [keepOpen, setKeepOpen] = useState(false);
   const hoveredRef = useRef(false);
   const focusWithinRef = useRef(false);
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // The external reopen/collapse handle (focus lands here when "Hide" closes the
+  // drawer — A11Y-003) and the first control inside (focus lands here when the
+  // handle OPENS the drawer — A11Y-006).
+  const handleBtnRef = useRef<HTMLButtonElement | null>(null);
+  const firstControlRef = useRef<HTMLInputElement | null>(null);
 
   const clearTimer = useCallback(() => {
     if (timerRef.current) {
@@ -142,12 +161,17 @@ export function MapDrawer({
   // mouseleave / blur handlers re-arm a fresh window when hover/focus ends.
   const scheduleRetract = useCallback(() => {
     clearTimer();
+    // "Keep panel open" disables the auto-retract entirely — never schedule the
+    // timer while it is on (A11Y-001). Toggling it re-runs the arm effect below
+    // (scheduleRetract identity changes), so turning it OFF re-arms a fresh 15 s
+    // window and turning it ON clears any pending one.
+    if (keepOpen) return;
     timerRef.current = setTimeout(() => {
       if (!hoveredRef.current && !focusWithinRef.current) {
         setOpen(false);
       }
     }, RETRACT_MS);
-  }, [clearTimer]);
+  }, [clearTimer, keepOpen]);
 
   // Arm on open; disarm on close. Cleanup clears any pending timer.
   useEffect(() => {
@@ -193,8 +217,30 @@ export function MapDrawer({
     [handleInteract],
   );
 
+  // Hover reopen (hot-zone): open WITHOUT stealing focus (A11Y-006 caveat — the
+  // pointer user is already where they want to be).
   const openDrawer = useCallback(() => setOpen(true), []);
-  const toggleOpen = useCallback(() => setOpen((o) => !o), []);
+
+  // The handle button toggles the drawer. On OPEN it moves focus to the first
+  // control inside so a keyboard user lands in the panel they just opened
+  // (A11Y-006). On CLOSE focus simply stays on the handle (it is the activated
+  // element and remains operable), so no extra focus move is needed.
+  const toggleViaHandle = useCallback(() => {
+    if (open) {
+      setOpen(false);
+    } else {
+      setOpen(true);
+      requestAnimationFrame(() => firstControlRef.current?.focus());
+    }
+  }, [open]);
+
+  // The internal "Hide" button closes the drawer. Because `inert` then applies
+  // to the drawer (its ancestor), focus would otherwise drop to <body>; move it
+  // to the now-visible reopen handle instead (A11Y-003 — WCAG 2.4.3).
+  const handleHide = useCallback(() => {
+    setOpen(false);
+    requestAnimationFrame(() => handleBtnRef.current?.focus());
+  }, []);
 
   const noVertical = activeVertical === null;
   const label = verticalLabel(activeVertical);
@@ -239,17 +285,18 @@ export function MapDrawer({
           OUTSIDE the sliding panel so it stays operable when the panel is
           off-screen. */}
       <button
+        ref={handleBtnRef}
         type="button"
         className={`map-drawer__handle${open ? ' map-drawer__handle--open' : ''}`}
         aria-label={open ? 'Close map menu' : 'Open map menu'}
         aria-expanded={open}
         aria-controls={drawerId}
-        onClick={toggleOpen}
+        onClick={toggleViaHandle}
       >
         <span aria-hidden="true">{open ? '‹' : '›'}</span>
       </button>
 
-      <main
+      <aside
         id={drawerId}
         className={`map-drawer${open ? '' : ' map-drawer--closed'}`}
         aria-label="Map menu"
@@ -265,13 +312,27 @@ export function MapDrawer({
       >
         <header className="map-drawer__header">
           <h2>Map menu</h2>
-          <button
-            type="button"
-            className="btn-secondary map-drawer__collapse"
-            onClick={() => setOpen(false)}
-          >
-            Hide
-          </button>
+          <div className="map-drawer__header-controls">
+            {/* A11Y-001 (WCAG 2.2.1): a user control over the 15 s auto-retract.
+                Checked → the drawer never auto-hides. */}
+            <div className="field-checkbox map-drawer__keep-open">
+              <input
+                id={keepOpenId}
+                type="checkbox"
+                checked={keepOpen}
+                onChange={(e) => setKeepOpen(e.target.checked)}
+              />
+              <label htmlFor={keepOpenId}>Keep panel open</label>
+            </div>
+            <button
+              type="button"
+              className="btn-secondary map-drawer__collapse"
+              aria-label="Close map menu"
+              onClick={handleHide}
+            >
+              Hide
+            </button>
+          </div>
         </header>
 
         {/* (a) The vertical chooser — the PRIMARY gate (multi-select). */}
@@ -280,11 +341,14 @@ export function MapDrawer({
           <p className="helper-text">
             Select verticals to show their sites on the map.
           </p>
-          {VERTICAL_OPTIONS.map((o) => {
+          {VERTICAL_OPTIONS.map((o, i) => {
             const id = `${verticalsBaseId}-${o.value}`;
             return (
               <div className="field-checkbox" key={o.value}>
                 <input
+                  // The first control receives focus when the handle OPENS the
+                  // drawer (A11Y-006).
+                  ref={i === 0 ? firstControlRef : undefined}
                   id={id}
                   type="checkbox"
                   checked={selectedVerticals.includes(o.value)}
@@ -437,8 +501,12 @@ export function MapDrawer({
           Jump to nearest open area
         </button>
 
-        {/* (c) Customer CRUD — relocated into the scrollable drawer. */}
-        <section className="map-drawer__crud" aria-label="Customers">
+        {/* (c) Customer CRUD — relocated into the scrollable drawer. No
+            landmark label here: CustomerList already exposes its own Customers
+            section landmark, so labeling this OUTER wrapper too would list
+            "Customers" twice in screen-reader landmark nav (A11Y-005). Leaving
+            it unlabeled drops the wrapper from the landmark list. */}
+        <section className="map-drawer__crud">
           <CustomerForm onChanged={onChanged} />
           <CustomerImport onChanged={onChanged} />
           <CustomerList
@@ -448,7 +516,7 @@ export function MapDrawer({
             conflictsLoading={conflictsLoading}
           />
         </section>
-      </main>
+      </aside>
     </>
   );
 }

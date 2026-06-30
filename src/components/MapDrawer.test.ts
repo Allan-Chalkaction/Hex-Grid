@@ -63,6 +63,45 @@ describe('MapDrawer.tsx source contract', () => {
     expect(src).toContain('<CustomerList');
   });
 
+  it('roots the drawer in an <aside> complementary landmark (not <main>)', () => {
+    // A11Y-002 (WCAG 1.3.1/2.4.1): the drawer is a control panel, not the page's
+    // dominant content (the map is) — so it is <aside>, not <main>.
+    expect(src).toContain('<aside');
+    expect(src).toContain('</aside>');
+    expect(src).not.toContain('<main');
+  });
+
+  it('gives the auto-retract a user control (A11Y-001 keep-open toggle)', () => {
+    // The persistent "Keep panel open" checkbox + state, and the timer honoring
+    // it (scheduling is skipped while keepOpen is on).
+    expect(src).toContain('Keep panel open');
+    expect(src).toContain('keepOpen');
+    expect(src).toContain('setKeepOpen');
+    expect(src).toContain('if (keepOpen) return');
+  });
+
+  it('labels the internal Hide button (A11Y-004)', () => {
+    // The collapse button carries an explicit accessible name matching the
+    // handle's close label (the literal attr is on the Hide button; the handle
+    // uses a dynamic expression).
+    expect(src).toContain('aria-label="Close map menu"');
+  });
+
+  it('manages focus across Hide/handle (A11Y-003 / A11Y-006)', () => {
+    // Hide → focus the now-visible reopen handle; handle-open → focus the first
+    // control inside. Both via a ref + requestAnimationFrame.
+    expect(src).toContain('handleBtnRef');
+    expect(src).toContain('firstControlRef');
+    expect(src).toContain('handleBtnRef.current?.focus()');
+    expect(src).toContain('firstControlRef.current?.focus()');
+  });
+
+  it('does not double-label the CRUD landmark (A11Y-005)', () => {
+    // The outer CRUD wrapper no longer carries aria-label="Customers" (the inner
+    // CustomerList owns that landmark name).
+    expect(src).not.toContain('aria-label="Customers"');
+  });
+
   it('imports VERTICAL_OPTIONS (does not re-author the vocabulary)', () => {
     expect(src).toMatch(
       /import\s*\{[^}]*VERTICAL_OPTIONS[^}]*\}\s*from '\.\.\/lib\/customers'/,
@@ -128,8 +167,14 @@ describe('index.css drawer contract', () => {
     expect(css).toContain('prefers-reduced-motion: reduce');
   });
 
-  it('has a ~16px left-edge hover hot-zone', () => {
+  it('has a ~1rem left-edge hover hot-zone', () => {
     expect(css).toContain('.map-drawer__hotzone');
-    expect(css).toContain('width: 16px');
+    expect(css).toContain('width: 1rem');
+  });
+
+  it('clamps the open handle offset to the drawer max-width (ui-review M1)', () => {
+    // The drawer is width:23rem but max-width:92vw, so the open handle offset
+    // must clamp the same way or it floats off a narrow viewport.
+    expect(css).toContain('left: min(23rem, 92vw)');
   });
 });

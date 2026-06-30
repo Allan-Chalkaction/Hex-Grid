@@ -93,6 +93,19 @@ body,
   gap: 0.5rem;
 }
 
+/* The right-side header cluster: the "Keep panel open" control + the Hide
+   button, grouped so the header stays a clean two-end layout. */
+.map-drawer__header-controls {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.map-drawer__keep-open {
+  font-size: 0.8rem;
+  white-space: nowrap;
+}
+
 .map-drawer details summary {
   font-size: 0.875rem;
 }
@@ -147,9 +160,12 @@ body,
   transition: left 280ms ease;
 }
 
-/* When open the handle rides the drawer's right edge (= drawer width). */
+/* When open the handle rides the drawer's right edge. The drawer is
+   `width: 23rem` but clamped by `max-width: 92vw`, so the handle offset must
+   clamp the SAME way — otherwise on a narrow viewport the open handle floats
+   off the actual drawer edge (ui-review M1 / CR-001). */
 .map-drawer__handle--open {
-  left: 23rem;
+  left: min(23rem, 92vw);
 }
 
 /* The left-edge hover hot-zone (pointer reopen) — a thin strip over the map's
@@ -160,7 +176,7 @@ body,
   left: 0;
   bottom: 0;
   z-index: 2;
-  width: 16px;
+  width: 1rem;
 }
 
 /* Respect prefers-reduced-motion: no/instant slide (the retract still happens,
