@@ -83,12 +83,10 @@ export function App() {
   // `filterToVertical` with a MULTI-SELECT `selectedVerticals` (default []): the
   // chooser IS the gate for site visibility. Saturation/prospecting apply to the
   // FIRST selected vertical (`activeVertical`); empty selection => no sites, no
-  // heatmap. Defaults: capitals/metros/ZCTA OFF, zones ON.
+  // heatmap. Defaults: ZCTA OFF, zones ON.
   const [selectedVerticals, setSelectedVerticals] = useState<string[]>([]);
   const [showHeatmap, setShowHeatmap] = useState(true);
   const [showProspecting, setShowProspecting] = useState(false);
-  const [showCapitals, setShowCapitals] = useState(false);
-  const [showMetros, setShowMetros] = useState(false);
   const [showZcta, setShowZcta] = useState(false);
   const [showZones, setShowZones] = useState(true);
 
@@ -262,10 +260,7 @@ export function App() {
           showHeatmap={showHeatmap}
           showProspecting={showProspecting}
           showZones={showZones}
-          showCapitals={showCapitals}
-          showMetros={showMetros}
           showZcta={showZcta}
-          zoom={viewport?.zoom ?? 4}
           dataVersion={version}
           resolution={saturation.resolution}
           onViewportChange={handleViewportChange}
@@ -282,8 +277,6 @@ export function App() {
           showHeatmap={showHeatmap}
           showProspecting={showProspecting}
           showZones={showZones}
-          showCapitals={showCapitals}
-          showMetros={showMetros}
           showZcta={showZcta}
           zctaConfigured={zctaIsConfigured}
           coveredCount={saturation.coveredCount}
@@ -295,8 +288,6 @@ export function App() {
           onToggleHeatmap={setShowHeatmap}
           onToggleProspecting={setShowProspecting}
           onToggleZones={setShowZones}
-          onToggleCapitals={setShowCapitals}
-          onToggleMetros={setShowMetros}
           onToggleZcta={setShowZcta}
           onJumpToOpen={handleJumpToOpen}
           onChanged={() => void reload()}

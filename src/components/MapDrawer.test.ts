@@ -118,9 +118,23 @@ describe('MapDrawer.tsx source contract', () => {
     expect(src).not.toContain('onSelectVertical');
   });
 
-  it('keeps the two named layer fieldsets', () => {
-    expect(src).toContain('<legend>Reference layers</legend>');
+  it('has only the Analysis layer fieldset (Reference fieldset removed)', () => {
     expect(src).toContain('<legend>Analysis layers</legend>');
+    expect(src).not.toContain('Reference layers');
+  });
+
+  it('relocates the ZIP toggle into the Analysis fieldset, a11y intact', () => {
+    // The ZIP toggle now lives AFTER the Analysis legend (it moved out of the
+    // removed Reference fieldset). Its full a11y contract is preserved: native
+    // disabled (not aria-disabled), the aria-describedby helper note, and the
+    // useId-derived source label.
+    const analysisIdx = src.indexOf('<legend>Analysis layers</legend>');
+    const zipIdx = src.indexOf('ZIP boundaries ({zctaSourceLabel()})');
+    expect(analysisIdx).toBeGreaterThan(-1);
+    expect(zipIdx).toBeGreaterThan(analysisIdx);
+    expect(src).toContain('disabled={!zctaConfigured}');
+    expect(src).toContain('aria-describedby={!zctaConfigured ? zctaNoteId : undefined}');
+    expect(src).toContain('Configure a ZCTA tile source');
   });
 
   it('preserves the a11y contract — useId, native disabled, seeded-empty aria-live, ZIP describedby', () => {

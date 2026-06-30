@@ -15,8 +15,8 @@ import { CustomerList } from './CustomerList';
  *   (a) the vertical chooser — a MULTI-SELECT over `VERTICAL_OPTIONS` (native
  *       checkboxes, each `useId`-labeled, with a per-vertical color swatch). This
  *       is the PRIMARY gate: it drives which sites are visible on the map.
- *   (b) the layer toggles (saturation heatmap, prospecting, site zones, capitals,
- *       metros, ZIP) + the saturation legend + the vertical color legend + the
+ *   (b) the Analysis-layer toggles (site zones, saturation heatmap, prospecting,
+ *       ZIP) + the saturation legend + the vertical color legend + the
  *       `aria-live` summary + the jump-to-open button.
  *   (c) the customer CRUD (add form, CSV import, list) — rendered inside the
  *       scrollable drawer.
@@ -67,8 +67,6 @@ export interface MapDrawerProps {
   showHeatmap: boolean;
   showProspecting: boolean;
   showZones: boolean;
-  showCapitals: boolean;
-  showMetros: boolean;
   showZcta: boolean;
   /** Whether a ZCTA tile source is configured (drives the ZIP toggle enable). */
   zctaConfigured: boolean;
@@ -83,8 +81,6 @@ export interface MapDrawerProps {
   onToggleHeatmap: (on: boolean) => void;
   onToggleProspecting: (on: boolean) => void;
   onToggleZones: (on: boolean) => void;
-  onToggleCapitals: (on: boolean) => void;
-  onToggleMetros: (on: boolean) => void;
   onToggleZcta: (on: boolean) => void;
   onJumpToOpen: () => void;
   // ---- Customer CRUD wiring (relocated from the old left .site-panel). ----
@@ -100,8 +96,6 @@ export function MapDrawer({
   showHeatmap,
   showProspecting,
   showZones,
-  showCapitals,
-  showMetros,
   showZcta,
   zctaConfigured,
   coveredCount,
@@ -113,8 +107,6 @@ export function MapDrawer({
   onToggleHeatmap,
   onToggleProspecting,
   onToggleZones,
-  onToggleCapitals,
-  onToggleMetros,
   onToggleZcta,
   onJumpToOpen,
   onChanged,
@@ -124,8 +116,6 @@ export function MapDrawer({
 }: MapDrawerProps) {
   const drawerId = useId();
   const verticalsBaseId = useId();
-  const capitalsId = useId();
-  const metrosId = useId();
   const zctaId = useId();
   const zctaNoteId = useId();
   const zonesId = useId();
@@ -367,48 +357,7 @@ export function MapDrawer({
           })}
         </fieldset>
 
-        {/* (b) Layer toggles. */}
-        <fieldset className="layers-fieldset">
-          <legend>Reference layers</legend>
-
-          <div className="field-checkbox">
-            <input
-              id={capitalsId}
-              type="checkbox"
-              checked={showCapitals}
-              onChange={(e) => onToggleCapitals(e.target.checked)}
-            />
-            <label htmlFor={capitalsId}>State capitals</label>
-          </div>
-
-          <div className="field-checkbox">
-            <input
-              id={metrosId}
-              type="checkbox"
-              checked={showMetros}
-              onChange={(e) => onToggleMetros(e.target.checked)}
-            />
-            <label htmlFor={metrosId}>Metro areas</label>
-          </div>
-
-          <div className="field-checkbox">
-            <input
-              id={zctaId}
-              type="checkbox"
-              checked={showZcta}
-              disabled={!zctaConfigured}
-              aria-describedby={!zctaConfigured ? zctaNoteId : undefined}
-              onChange={(e) => onToggleZcta(e.target.checked)}
-            />
-            <label htmlFor={zctaId}>ZIP boundaries ({zctaSourceLabel()})</label>
-          </div>
-          {!zctaConfigured && (
-            <p id={zctaNoteId} className="helper-text">
-              Configure a ZCTA tile source (VITE_ZCTA_TILES_URL) to enable.
-            </p>
-          )}
-        </fieldset>
-
+        {/* (b) Analysis-layer toggles. */}
         <fieldset className="layers-fieldset">
           <legend>Analysis layers</legend>
 
@@ -443,6 +392,23 @@ export function MapDrawer({
             />
             <label htmlFor={prospectingId}>Highlight open areas</label>
           </div>
+
+          <div className="field-checkbox">
+            <input
+              id={zctaId}
+              type="checkbox"
+              checked={showZcta}
+              disabled={!zctaConfigured}
+              aria-describedby={!zctaConfigured ? zctaNoteId : undefined}
+              onChange={(e) => onToggleZcta(e.target.checked)}
+            />
+            <label htmlFor={zctaId}>ZIP boundaries ({zctaSourceLabel()})</label>
+          </div>
+          {!zctaConfigured && (
+            <p id={zctaNoteId} className="helper-text">
+              Configure a ZCTA tile source (VITE_ZCTA_TILES_URL) to enable.
+            </p>
+          )}
         </fieldset>
 
         <details>

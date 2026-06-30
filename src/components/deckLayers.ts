@@ -2,13 +2,6 @@ import type { Layer } from 'deck.gl';
 import { sitePinsLayer } from './sitePinsLayer';
 import { siteZonesLayer } from './siteZonesLayer';
 import { saturationLayer, prospectLayer } from './saturationLayer';
-import {
-  capitalsLayer,
-  metrosLayer,
-  shouldShowMetros,
-} from './referenceLabelsLayer';
-import capitals from '../data/capitals.json';
-import metros from '../data/metros.json';
 import type { SiteGeo } from '../lib/customers';
 import type { CoverageCell } from '../lib/coverage';
 
@@ -32,21 +25,17 @@ export interface DeckLayerOptions {
   showHeatmap: boolean;
   showProspecting: boolean;
   showZones: boolean;
-  showCapitals: boolean;
-  showMetros: boolean;
-  zoom: number;
   dataVersion: number;
   resolution: number;
 }
 
 /**
  * Build the deck overlay layers in the legibility-preserving z-order. Bottom →
- * top: wash → prospect → zones → pins → metro labels → capital labels. Reference
- * layers (capitals/metros) + zones are conditionally spread (omitted when off),
- * so with every reference toggle off the array equals the prior composition
- * exactly (the byte-identical-first-paint invariant). Labels are LAST so they
- * render above pins; capitals after metros so a capital wins a collision. (ZCTA
- * is NOT here — it is a MapLibre-native source beneath the entire overlay.)
+ * top: wash → prospect → zones → pins. The wash/prospect overlays and zones are
+ * conditionally spread (omitted when off), so with the analysis overlays off the
+ * array equals the base composition exactly (the byte-identical-first-paint
+ * invariant). (ZCTA is NOT here — it is a MapLibre-native source beneath the
+ * entire overlay.)
  *
  * The multi-select drives visibility: pins filter to `selectedVerticals`, and the
  * zones layer is fed only the VISIBLE (selected-vertical) located sites so a
@@ -75,7 +64,5 @@ export function buildDeckLayers(o: DeckLayerOptions): Layer[] {
       : []),
     ...(o.showZones ? [siteZonesLayer(visibleSites, o.conflictIds)] : []),
     sitePinsLayer(o.sites, { selectedVerticals: o.selectedVerticals }),
-    ...(o.showMetros && shouldShowMetros(o.zoom) ? [metrosLayer(metros)] : []),
-    ...(o.showCapitals ? [capitalsLayer(capitals)] : []),
   ];
 }
