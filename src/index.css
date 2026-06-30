@@ -41,6 +41,9 @@ body,
   align-items: center;
   justify-content: space-between;
   gap: 1rem;
+  /* L3: wrap so the view toggle + signed-in email + Sign-out don't crowd or
+     clip on narrow viewports. */
+  flex-wrap: wrap;
   padding: 0.5rem 1rem;
   background: rgba(255, 255, 255, 0.92);
   border-bottom: 1px solid #ddd;
@@ -561,8 +564,9 @@ button.btn-danger {
  * Sites view (CG Sites-table): the top-level Map ⇄ Sites toggle in the header +
  * the full-width editable Sites table. Plain semantic CSS, literal hex only
  * (no Tailwind / CSS-vars) — reuses the W2 palette (#ddd hairline, #555 muted,
- * #b00020 error, #137333 ok, #1558b0 text) and adds two sanctioned warning
- * literals (#fdecec row tint, #fce8e6 badge fill) for the "Needs location" cue.
+ * #b00020 error, #137333 ok, #1558b0 text) and adds one sanctioned warning
+ * literal (#fdecec row tint) for the "Needs location" cue (the badge is outlined,
+ * no fill — L1).
  * ------------------------------------------------------------------------- */
 
 /* Visually-hidden but screen-reader-available (table caption + select labels). */
@@ -608,13 +612,27 @@ button.btn-danger {
   border-color: #1558b0;
 }
 
+/* M2: hover affordance — the inactive toggle borders blue on hover; the active
+   one deepens its fill. Reinforcement only; the global :focus-visible ring is
+   left untouched. */
+.view-toggle__btn:hover {
+  border-color: #1558b0;
+}
+
+.view-toggle__btn[aria-pressed='true']:hover {
+  background: #0f4690;
+  border-color: #0f4690;
+}
+
 /* The Sites view fills the app-shell beneath the absolute .app-header; pad the
-   top so the first row clears the floating header, and scroll its own overflow. */
+   top so the heading clears the floating header. M1: it does NOT scroll itself —
+   the table wrap is the SOLE bounded vertical scroller (so position:sticky on the
+   th binds to it, not to a phantom outer scroller). */
 .sites-view {
   position: absolute;
   inset: 0;
   z-index: 1;
-  overflow: auto;
+  overflow: hidden;
   padding: 3.5rem 1rem 2rem;
   background: #ffffff;
 }
@@ -643,8 +661,14 @@ button.btn-danger {
   margin-bottom: 0;
 }
 
+/* M1: the bounded scroller for BOTH axes. Capping its height to the viewport
+   minus the app-header (3.5rem) and the in-view sites toolbar (~6rem) makes it
+   the nearest scroll ancestor of the table, so the sticky th pins at the TOP of
+   the wrap (which sits below the app-header) instead of binding to the wrong
+   scroller and sliding under the z-index:2 header. */
 .sites-table-wrap {
-  overflow-x: auto;
+  overflow: auto;
+  max-height: calc(100vh - 3.5rem - 6rem);
 }
 
 .sites-table {
@@ -691,13 +715,21 @@ button.btn-danger {
   margin-top: 0.25rem;
 }
 
+/* M2: hover affordance on the per-row action buttons (idiom-consistent with the
+   view toggle). Skipped while disabled (busy) so a pending row reads inert. */
+.sites-cell-btn:hover:not(:disabled) {
+  border-color: #1558b0;
+}
+
 .sites-cell-error {
   display: block;
   margin-top: 0.25rem;
 }
 
-/* The prominent "Needs location" badge — a filled chip (word + glyph + color,
-   never color-alone) that mirrors the .geo-status metrics. */
+/* The prominent "Needs location" badge — an outlined chip (word + glyph + color,
+   never color-alone) that mirrors the .geo-status metrics. L1: no fill — it sits
+   on the #fdecec needs-location row tint where a #fce8e6 fill was invisible; the
+   #b00020 border + dark-red text + ⚠ glyph carry the cue. */
 .badge-needs-location {
   display: inline-flex;
   align-items: center;
@@ -706,7 +738,6 @@ button.btn-danger {
   font-size: 0.8rem;
   font-weight: 600;
   color: #b00020;
-  background: #fce8e6;
   border: 1px solid #b00020;
   border-radius: 4px;
 }

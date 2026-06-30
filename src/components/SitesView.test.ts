@@ -118,6 +118,19 @@ describe('SitesView.tsx — a11y contract', () => {
     expect(sitesSrc).toContain('aria-live="polite"');
   });
 
+  it('A11Y-002: the loading message is a role="status" live region', () => {
+    expect(sitesSrc).toContain('<p role="status">Loading sites…</p>');
+  });
+
+  it('A11Y-001: every per-row action button names its site (WCAG 2.4.6)', () => {
+    expect(sitesSrc).toContain('aria-label={`Save name for ${site.name}`}');
+    expect(sitesSrc).toContain(
+      'aria-label={`Save & geocode for ${site.name}`}',
+    );
+    expect(sitesSrc).toContain('aria-label={`Save lat/lng for ${site.name}`}');
+    expect(sitesSrc).toContain('aria-label={`Geocode ${site.name}`}');
+  });
+
   it('uses native inputs/buttons (no role-reinvented widgets)', () => {
     expect(sitesSrc).toContain('type="text"');
     expect(sitesSrc).toContain('type="number"');
@@ -134,6 +147,33 @@ describe('SitesView.tsx — a11y contract', () => {
   it('bumps the shared reload version after a save (onChanged)', () => {
     expect(sitesSrc).toContain('onChanged()');
     expect(sitesSrc).toContain('reloadVersion');
+  });
+});
+
+describe('SitesView.tsx — CR-001 multi-field-edit safety', () => {
+  it('keys each row on the STABLE site id (not a mutable composite)', () => {
+    // A value-composite key remounts the row on any single save, discarding the
+    // operator's unsaved edits in the row's other fields. The row keys on id only
+    // and reconciles fields via a dirty-aware effect instead.
+    expect(sitesSrc).toContain('key={site.id}');
+    expect(sitesSrc).not.toContain(
+      'key={`${site.id}:${site.lat}:${site.lng}:${site.name}:${site.address}`}',
+    );
+  });
+
+  it('reconciles a field from fresh props only when it is not dirty', () => {
+    // The effect re-seeds a field only when its OWN persisted value changed AND
+    // the input still holds the last-seen persisted value (i.e. isn't dirty), so
+    // a geocode re-seeds lat/lng without clobbering an in-progress address edit.
+    expect(sitesSrc).toContain('const persistedName = site.name;');
+    expect(sitesSrc).toContain('cur === old ? persistedLat : cur');
+  });
+});
+
+describe('SitesView.tsx — L2 empty-filter message', () => {
+  it('says so when the needs-location filter matches nothing', () => {
+    expect(sitesSrc).toContain('onlyMissing && rows.length === 0');
+    expect(sitesSrc).toContain('No sites need a location.');
   });
 });
 

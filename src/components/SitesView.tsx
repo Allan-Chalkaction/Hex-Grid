@@ -1,4 +1,4 @@
-import { useEffect, useId, useState } from 'react';
+import { useEffect, useId, useRef, useState } from 'react';
 import { supabase } from '../lib/supabaseClient';
 import {
   updateSiteName,
@@ -110,7 +110,9 @@ export function SitesView({
     return (
       <section className="sites-view" aria-label="Sites">
         <h2>Sites</h2>
-        <p>Loading sites…</p>
+        {/* A11Y-002 (WCAG 4.1.3): the loading message is a live status so the
+            transition out of "loading" is announced. */}
+        <p role="status">Loading sites…</p>
       </section>
     );
   }
@@ -227,6 +229,10 @@ export function SitesView({
 
       {sites.length === 0 ? (
         <p>No sites yet. Add customers and sites from the Map view.</p>
+      ) : onlyMissing && rows.length === 0 ? (
+        // L2: the "only sites needing location" filter is on but every site is
+        // located — say so instead of rendering an empty table body.
+        <p>No sites need a location.</p>
       ) : (
         <div className="sites-table-wrap">
           <table className="sites-table">
@@ -250,10 +256,14 @@ export function SitesView({
             <tbody>
               {rows.map((site) => (
                 <SitesRow
-                  // Composite key: remount the row when the PERSISTED values
-                  // change (e.g. after a geocode), so the inline inputs re-seed
-                  // from the fresh row rather than holding stale state.
-                  key={`${site.id}:${site.lat}:${site.lng}:${site.name}:${site.address}`}
+                  // CR-001: key on the STABLE site id only — never the mutable
+                  // values. A composite value key remounts the row on any single
+                  // save, discarding the operator's unsaved edits in the row's
+                  // OTHER fields. The row now seeds its inputs once and reconciles
+                  // each field from fresh props via a dirty-aware effect (see
+                  // SitesRow), so a geocode still re-seeds lat/lng without
+                  // clobbering an in-progress address edit.
+                  key={site.id}
                   site={site}
                   brand={brands.get(site.customer_id) ?? '(unknown)'}
                   onChanged={onChanged}
@@ -282,13 +292,60 @@ function SitesRow({
   const lngId = useId();
   const radiusId = useId();
 
-  const [name, setName] = useState(site.name);
-  const [address, setAddress] = useState(site.address ?? '');
-  const [lat, setLat] = useState(site.lat != null ? String(site.lat) : '');
-  const [lng, setLng] = useState(site.lng != null ? String(site.lng) : '');
+  // Inputs seed ONCE from the row (the row keys on site.id only, so it never
+  // remounts on a value change). The persisted values below + the reconcile
+  // effect keep each field in sync with server changes WITHOUT clobbering the
+  // operator's unsaved edits in sibling fields (CR-001).
+  const persistedName = site.name;
+  const persistedAddress = site.address ?? '';
+  const persistedLat = site.lat != null ? String(site.lat) : '';
+  const persistedLng = site.lng != null ? String(site.lng) : '';
+
+  const [name, setName] = useState(persistedName);
+  const [address, setAddress] = useState(persistedAddress);
+  const [lat, setLat] = useState(persistedLat);
+  const [lng, setLng] = useState(persistedLng);
   const [radiusValue, setRadiusValue] = useState(
     site.exclusivity_radius_mi != null ? String(site.exclusivity_radius_mi) : '',
   );
+
+  // CR-001: dirty-aware reconcile. When a field's OWN persisted value changes
+  // (e.g. a geocode rewrote lat/lng, or a sibling save reloaded the row), re-seed
+  // that field's input ONLY if it isn't dirty — i.e. the input still holds the
+  // value we last saw persisted. A field the operator has typed into (dirty) is
+  // left untouched, so saving one field never drops an in-progress edit in
+  // another. Each field is tracked independently against the last-seen snapshot.
+  const seen = useRef({
+    name: persistedName,
+    address: persistedAddress,
+    lat: persistedLat,
+    lng: persistedLng,
+  });
+  useEffect(() => {
+    const prev = seen.current;
+    if (persistedName !== prev.name) {
+      const old = prev.name;
+      setName((cur) => (cur === old ? persistedName : cur));
+    }
+    if (persistedAddress !== prev.address) {
+      const old = prev.address;
+      setAddress((cur) => (cur === old ? persistedAddress : cur));
+    }
+    if (persistedLat !== prev.lat) {
+      const old = prev.lat;
+      setLat((cur) => (cur === old ? persistedLat : cur));
+    }
+    if (persistedLng !== prev.lng) {
+      const old = prev.lng;
+      setLng((cur) => (cur === old ? persistedLng : cur));
+    }
+    seen.current = {
+      name: persistedName,
+      address: persistedAddress,
+      lat: persistedLat,
+      lng: persistedLng,
+    };
+  }, [persistedName, persistedAddress, persistedLat, persistedLng]);
 
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -439,6 +496,7 @@ function SitesRow({
         <button
           type="button"
           className="btn-secondary sites-cell-btn"
+          aria-label={`Save name for ${site.name}`}
           disabled={busy}
           onClick={saveName}
         >
@@ -458,6 +516,7 @@ function SitesRow({
         <button
           type="button"
           className="btn-secondary sites-cell-btn"
+          aria-label={`Save & geocode for ${site.name}`}
           disabled={busy}
           onClick={saveAddress}
         >
@@ -491,6 +550,7 @@ function SitesRow({
         <button
           type="button"
           className="btn-secondary sites-cell-btn"
+          aria-label={`Save lat/lng for ${site.name}`}
           disabled={busy}
           onClick={saveLocation}
         >
@@ -536,6 +596,7 @@ function SitesRow({
         <button
           type="button"
           className="btn-secondary sites-cell-btn"
+          aria-label={`Geocode ${site.name}`}
           disabled={busy}
           onClick={geocodeRow}
         >
