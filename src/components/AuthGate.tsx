@@ -12,7 +12,19 @@ import type { AppSession } from '../lib/auth';
  * submit, and auth errors announced via `role="alert"` (not color alone). Fully
  * keyboard-operable with the browser's native focus order.
  */
-export function AuthGate({ children }: { children: ReactNode }) {
+export function AuthGate({
+  children,
+  headerSlot,
+}: {
+  children: ReactNode;
+  /**
+   * Optional controls rendered inside `.app-header` between the signed-in label
+   * and the Sign out button — used by App to mount the Map ⇄ Sites view toggle
+   * (App owns the `view` state; the header lives here, so the toggle is passed
+   * down as a slot). Only rendered when signed in (the header only exists then).
+   */
+  headerSlot?: ReactNode;
+}) {
   const [session, setSession] = useState<AppSession | null>(null);
   const [ready, setReady] = useState(false);
   const [email, setEmail] = useState('');
@@ -61,6 +73,7 @@ export function AuthGate({ children }: { children: ReactNode }) {
       <>
         <header className="app-header">
           <span>Signed in as {session.user.email}</span>
+          {headerSlot}
           <button type="button" onClick={() => void signOut()}>
             Sign out
           </button>

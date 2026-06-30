@@ -230,6 +230,30 @@ export async function updateSiteLocation(
   }
 }
 
+/**
+ * Rename a site (the Sites-table inline edit). API-first PostgREST update on the
+ * `site` base table, RLS-scoped by `site_tenant_update` (0001). `site.name` is
+ * NOT NULL (0001:34), so an empty/whitespace name is rejected BEFORE the write —
+ * the same trim-then-guard posture the manual-add path uses to default a blank
+ * name to the address. This is a pure name write; it never touches location.
+ */
+export async function updateSiteName(
+  siteId: string,
+  name: string,
+): Promise<void> {
+  const trimmed = name.trim();
+  if (!trimmed) {
+    throw new Error('Site name is required.');
+  }
+  const { error } = await supabase
+    .from('site')
+    .update({ name: trimmed })
+    .eq('id', siteId);
+  if (error) {
+    throw new Error(error.message);
+  }
+}
+
 export interface SiteUpdateOutcome {
   status: 'geocoded' | 'failed';
   reason: GeocodeFailureReason | null;

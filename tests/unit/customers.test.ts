@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { isValidLatLng } from '../../src/lib/customers';
+import { isValidLatLng, updateSiteName } from '../../src/lib/customers';
 
 // Pure, no DB. (customers.ts transitively imports the app supabase singleton,
 // which constructs harmlessly from the dummy VITE_* env in vitest.config.ts.)
@@ -56,5 +56,24 @@ describe('isValidLatLng (CR-002 / SA-005 WGS84 bounds)', () => {
     expect(accept('  ', '  ')).toBe(false);
     expect(accept('40.71', '')).toBe(false);
     expect(accept('40.71', '-74.01')).toBe(true);
+  });
+});
+
+// updateSiteName guards an empty/whitespace name BEFORE touching the DB (site.name
+// is NOT NULL). The guard throws synchronously-before-await, so this is unit-
+// testable without a live Supabase (a valid name would hit the network, which the
+// node unit env has no server for — hence only the reject path is asserted here;
+// the happy path is covered transitively by the integration suite's site writes).
+describe('updateSiteName (Sites-table inline rename — NOT NULL guard)', () => {
+  it('rejects an empty name without writing', async () => {
+    await expect(updateSiteName('some-id', '')).rejects.toThrow(
+      /name is required/i,
+    );
+  });
+
+  it('rejects a whitespace-only name without writing', async () => {
+    await expect(updateSiteName('some-id', '   ')).rejects.toThrow(
+      /name is required/i,
+    );
   });
 });
