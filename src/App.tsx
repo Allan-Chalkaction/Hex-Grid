@@ -1,11 +1,8 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { cellToLatLng } from 'h3-js';
 import { AuthGate } from './components/AuthGate';
 import { MapShell } from './components/MapShell';
-import { CustomerForm } from './components/CustomerForm';
-import { CustomerImport } from './components/CustomerImport';
-import { CustomerList } from './components/CustomerList';
-import { SaturationPanel } from './components/SaturationPanel';
+import { MapDrawer } from './components/MapDrawer';
 import { zctaConfigured } from './components/zctaSource';
 import { supabase } from './lib/supabaseClient';
 import type { SiteGeo } from './lib/customers';
@@ -81,19 +78,22 @@ export function App() {
     [conflictsBySite],
   );
 
-  // ---- Wave 4 (AS-T6): saturation state lifted alongside conflictIds. ----
-  const [selectedVertical, setSelectedVertical] = useState<string | null>(null);
+  // ---- Saturation + layer state lifted alongside conflictIds. ----
+  // The left-menu redesign replaces the single `selectedVertical` + opt-in
+  // `filterToVertical` with a MULTI-SELECT `selectedVerticals` (default []): the
+  // chooser IS the gate for site visibility. Saturation/prospecting apply to the
+  // FIRST selected vertical (`activeVertical`); empty selection => no sites, no
+  // heatmap. Defaults: capitals/metros/ZCTA OFF, zones ON.
+  const [selectedVerticals, setSelectedVerticals] = useState<string[]>([]);
   const [showHeatmap, setShowHeatmap] = useState(true);
   const [showProspecting, setShowProspecting] = useState(false);
-  // ---- Wave 5 (RO-T7): reference + filter toggles lifted alongside the W4 state.
-  // The SAME `selectedVertical` (above) drives saturation AND the pin filter —
-  // there is exactly one vertical control/state (AC-021). Defaults:
-  // capitals/metros/ZCTA/filter OFF, zones ON (AC-018).
   const [showCapitals, setShowCapitals] = useState(false);
   const [showMetros, setShowMetros] = useState(false);
   const [showZcta, setShowZcta] = useState(false);
   const [showZones, setShowZones] = useState(true);
-  const [filterToVertical, setFilterToVertical] = useState(false);
+
+  // Saturation/prospecting/legend/summary key on the FIRST selected vertical.
+  const activeVertical = selectedVerticals[0] ?? null;
   // Whether a ZCTA tile source is configured (env-only; constant per session) —
   // drives the panel's ZIP toggle enable/disable (graceful degrade — RO-T4).
   const zctaIsConfigured = zctaConfigured();
@@ -115,19 +115,39 @@ export function App() {
     [],
   );
 
-  const handleSelectVertical = useCallback((vertical: string | null) => {
-    if (vertical !== null) {
+  // Toggle a vertical in/out of the multi-select gate. (Pure membership update;
+  // the "Computing saturation…" paint is driven by the activeVertical-change
+  // effect below so a synchronous setState never runs in the updater.)
+  const handleToggleVertical = useCallback(
+    (vertical: string, checked: boolean) => {
+      setSelectedVerticals((prev) => {
+        if (checked) {
+          return prev.includes(vertical) ? prev : [...prev, vertical];
+        }
+        return prev.filter((v) => v !== vertical);
+      });
+    },
+    [],
+  );
+
+  // Paint the "Computing saturation…" state the moment the ACTIVE vertical
+  // changes to a non-null token (toggling a non-first vertical leaves the active
+  // one unchanged → no recompute). Runs after paint, so the recompute effect
+  // below clears it. Mirrors the viewport-change "computing" signal.
+  const prevActiveRef = useRef<string | null>(null);
+  useEffect(() => {
+    if (activeVertical !== null && activeVertical !== prevActiveRef.current) {
       setComputing(true);
     }
-    setSelectedVertical(vertical);
-  }, []);
+    prevActiveRef.current = activeVertical;
+  }, [activeVertical]);
 
   // Viewport-bounded coverage recompute — reacts to viewport (debounced moveend),
-  // selectedVertical, and data reload (`version`); NEVER per render/frame (mirrors
-  // the conflictIds "recompute on data change" posture). The (synchronous, pure)
-  // compute is deferred a macrotask so the "Computing saturation…" state paints
-  // first, and is cancellable so a rapid change never writes stale cells. Each
-  // recompute clears any transient jump announcement.
+  // the ACTIVE vertical, and data reload (`version`); NEVER per render/frame
+  // (mirrors the conflictIds "recompute on data change" posture). The
+  // (synchronous, pure) compute is deferred a macrotask so the "Computing
+  // saturation…" state paints first, and is cancellable so a rapid change never
+  // writes stale cells. Each recompute clears any transient jump announcement.
   useEffect(() => {
     let cancelled = false;
     const id = setTimeout(() => {
@@ -135,7 +155,7 @@ export function App() {
         return;
       }
       setAnnouncement(null);
-      if (selectedVertical === null || viewport === null) {
+      if (activeVertical === null || viewport === null) {
         setSaturation(EMPTY_SATURATION);
         setComputing(false);
         return;
@@ -143,7 +163,7 @@ export function App() {
       setSaturation(
         computeSaturation({
           sites,
-          selectedVertical,
+          selectedVertical: activeVertical,
           bounds: viewport.bounds,
           zoom: viewport.zoom,
           center: viewport.center,
@@ -159,7 +179,7 @@ export function App() {
       cancelled = true;
       clearTimeout(id);
     };
-  }, [sites, selectedVertical, viewport, version, showProspecting]);
+  }, [sites, activeVertical, viewport, version, showProspecting]);
 
   // AC-016: ease the map to the nearest open cell's centroid + announce it via
   // the panel aria-live summary; the post-jump recompute clears the announce.
@@ -169,10 +189,10 @@ export function App() {
     // the current viewport so jump-to-open keeps working without paying the rank
     // cost on every recompute.
     let nearest = saturation.openCells[0];
-    if (!nearest && viewport !== null && selectedVertical !== null) {
+    if (!nearest && viewport !== null && activeVertical !== null) {
       nearest = computeSaturation({
         sites,
-        selectedVertical,
+        selectedVertical: activeVertical,
         bounds: viewport.bounds,
         zoom: viewport.zoom,
         center: viewport.center,
@@ -185,7 +205,7 @@ export function App() {
     const [lat, lng] = cellToLatLng(nearest.h3);
     setFlyToTarget({ lat, lng });
     setAnnouncement('Centered on nearest open area.');
-  }, [saturation.openCells, viewport, sites, selectedVertical]);
+  }, [saturation.openCells, viewport, sites, activeVertical]);
 
   const reload = useCallback(async () => {
     const { data } = await supabase.from('site_geo').select('*').order('name');
@@ -238,11 +258,10 @@ export function App() {
           conflictIds={conflictIds}
           cells={saturation.cells}
           openCells={saturation.openCells}
-          selectedVertical={selectedVertical}
+          selectedVerticals={selectedVerticals}
           showHeatmap={showHeatmap}
           showProspecting={showProspecting}
           showZones={showZones}
-          filterToVertical={filterToVertical}
           showCapitals={showCapitals}
           showMetros={showMetros}
           showZcta={showZcta}
@@ -252,47 +271,39 @@ export function App() {
           onViewportChange={handleViewportChange}
           flyToTarget={flyToTarget}
         />
-        {/* RO-T7 / AC-021: the consolidated top-right "Map layers" panel — a
-            SEPARATE surface; the left CRUD .site-panel below is untouched. The
-            ONE shared `selectedVertical` drives saturation AND the pin filter. */}
-        <SaturationPanel
-          selectedVertical={selectedVertical}
+        {/* The ONE consolidated left drawer: vertical chooser (the gate) → layer
+            toggles + saturation legend/summary → customer CRUD. Auto-retracts
+            after 15 s idle and reopens on left-edge hover + a focusable handle.
+            Replaces the old left .site-panel CRUD + the top-right
+            .saturation-panel as separate floating surfaces. */}
+        <MapDrawer
+          selectedVerticals={selectedVerticals}
+          activeVertical={activeVertical}
           showHeatmap={showHeatmap}
           showProspecting={showProspecting}
-          filterToVertical={filterToVertical}
+          showZones={showZones}
           showCapitals={showCapitals}
           showMetros={showMetros}
           showZcta={showZcta}
-          showZones={showZones}
           zctaConfigured={zctaIsConfigured}
           coveredCount={saturation.coveredCount}
           openCount={saturation.openCount}
           capped={saturation.capped}
           computing={computing}
           announcement={announcement}
-          onSelectVertical={handleSelectVertical}
+          onToggleVertical={handleToggleVertical}
           onToggleHeatmap={setShowHeatmap}
           onToggleProspecting={setShowProspecting}
-          onToggleFilter={setFilterToVertical}
+          onToggleZones={setShowZones}
           onToggleCapitals={setShowCapitals}
           onToggleMetros={setShowMetros}
           onToggleZcta={setShowZcta}
-          onToggleZones={setShowZones}
           onJumpToOpen={handleJumpToOpen}
+          onChanged={() => void reload()}
+          reloadVersion={version}
+          conflictsBySite={conflictsBySite}
+          conflictsLoading={conflictsLoading}
         />
-        {/* A11Y-004: the customer forms/list panel is the primary content, so it
-            is a <main> landmark (was an <aside>). The map remains the
-            complementary surface. */}
-        <main className="site-panel">
-          <CustomerForm onChanged={() => void reload()} />
-          <CustomerImport onChanged={() => void reload()} />
-          <CustomerList
-            onChanged={() => void reload()}
-            reloadVersion={version}
-            conflictsBySite={conflictsBySite}
-            conflictsLoading={conflictsLoading}
-          />
-        </main>
       </div>
     </AuthGate>
   );

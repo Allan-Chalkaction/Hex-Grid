@@ -18,8 +18,8 @@ import type { CoverageCell, LatLng, ViewportBounds } from '../lib/coverage';
  * the overlay's layers are refreshed via `overlay.setProps(...)`.
  *
  * Wave 5 (reference-overlays — RO-T5) extends the reactive seam:
- *   - **Color-by-vertical pins + opt-in filter** via the new `sitePinsLayer`
- *     signature (`selectedVertical` / `filterToVertical`).
+ *   - **Color-by-vertical pins gated by the multi-select** via the `sitePinsLayer`
+ *     signature (`selectedVerticals` — empty => no pins).
  *   - **Capitals + metros label layers** appended LAST in the deck array (labels
  *     above pins; capitals after metros so a capital wins a collision). Metros are
  *     gated below ~zoom 5 (`shouldShowMetros`) off the lifted viewport `zoom`.
@@ -37,11 +37,10 @@ export function MapShell({
   conflictIds,
   cells = [],
   openCells = [],
-  selectedVertical = null,
+  selectedVerticals = [],
   showHeatmap = false,
   showProspecting = false,
   showZones = true,
-  filterToVertical = false,
   showCapitals = false,
   showMetros = false,
   showZcta = false,
@@ -55,11 +54,10 @@ export function MapShell({
   conflictIds: Set<string>;
   cells?: CoverageCell[];
   openCells?: CoverageCell[];
-  selectedVertical?: string | null;
+  selectedVerticals?: string[];
   showHeatmap?: boolean;
   showProspecting?: boolean;
   showZones?: boolean;
-  filterToVertical?: boolean;
   showCapitals?: boolean;
   showMetros?: boolean;
   showZcta?: boolean;
@@ -164,11 +162,10 @@ export function MapShell({
         conflictIds,
         cells,
         openCells,
-        selectedVertical,
+        selectedVerticals,
         showHeatmap,
         showProspecting,
         showZones,
-        filterToVertical,
         showCapitals,
         showMetros,
         zoom,
@@ -181,11 +178,10 @@ export function MapShell({
     conflictIds,
     cells,
     openCells,
-    selectedVertical,
+    selectedVerticals,
     showHeatmap,
     showProspecting,
     showZones,
-    filterToVertical,
     showCapitals,
     showMetros,
     zoom,

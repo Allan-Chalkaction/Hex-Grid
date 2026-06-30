@@ -16,7 +16,7 @@ import type { CoverageCell } from '../lib/coverage';
  * never red; ui-spec §4). `prospectLayer` is the green-outline highlight of the
  * zero-coverage (open) cells (ui-spec §7). Both are mounted by `MapShell` UNDER
  * the W3 zones + pins (AS-T4); coloring + presence are reinforcement — the
- * authoritative SR-readable signal is the SaturationPanel legend + summary.
+ * authoritative SR-readable signal is the MapDrawer legend + summary.
  */
 
 /**

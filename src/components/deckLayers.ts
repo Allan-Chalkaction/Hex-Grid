@@ -23,11 +23,15 @@ export interface DeckLayerOptions {
   conflictIds: Set<string>;
   cells: CoverageCell[];
   openCells: CoverageCell[];
-  selectedVertical: string | null;
+  /**
+   * The multi-select vertical chooser — the gate for site visibility. Empty =>
+   * NO pins/zones (default load shows just the basemap). Saturation/prospecting
+   * apply to the FIRST selected vertical (`selectedVerticals[0]`).
+   */
+  selectedVerticals: string[];
   showHeatmap: boolean;
   showProspecting: boolean;
   showZones: boolean;
-  filterToVertical: boolean;
   showCapitals: boolean;
   showMetros: boolean;
   zoom: number;
@@ -39,29 +43,38 @@ export interface DeckLayerOptions {
  * Build the deck overlay layers in the legibility-preserving z-order. Bottom →
  * top: wash → prospect → zones → pins → metro labels → capital labels. Reference
  * layers (capitals/metros) + zones are conditionally spread (omitted when off),
- * so with every reference toggle off the array equals the W4 composition exactly
- * (the byte-identical-first-paint invariant). Labels are LAST so they render
- * above pins; capitals after metros so a capital wins a collision. (ZCTA is NOT
- * here — it is a MapLibre-native source beneath the entire overlay.)
+ * so with every reference toggle off the array equals the prior composition
+ * exactly (the byte-identical-first-paint invariant). Labels are LAST so they
+ * render above pins; capitals after metros so a capital wins a collision. (ZCTA
+ * is NOT here — it is a MapLibre-native source beneath the entire overlay.)
+ *
+ * The multi-select drives visibility: pins filter to `selectedVerticals`, and the
+ * zones layer is fed only the VISIBLE (selected-vertical) located sites so a
+ * zone never renders for a hidden site. Saturation/prospecting key on the FIRST
+ * selected vertical (`activeVertical`); with no selection neither overlay shows.
  */
 export function buildDeckLayers(o: DeckLayerOptions): Layer[] {
+  const activeVertical = o.selectedVerticals[0] ?? null;
   const trigger = {
-    selectedVertical: o.selectedVertical,
+    selectedVertical: activeVertical,
     dataVersion: o.dataVersion,
     resolution: o.resolution,
   };
+  // Only the visible (selected-vertical) sites contribute zones; conflict
+  // coloring still reads the whole-tenant `conflictIds` set, so a visible site
+  // in conflict reads red while hidden sites contribute no circles at all.
+  const visibleSites = o.sites.filter(
+    (s) => s.vertical != null && o.selectedVerticals.includes(s.vertical),
+  );
   return [
-    ...(o.showHeatmap && o.selectedVertical
+    ...(o.showHeatmap && activeVertical
       ? [saturationLayer(o.cells, trigger)]
       : []),
-    ...(o.showProspecting && o.selectedVertical
+    ...(o.showProspecting && activeVertical
       ? [prospectLayer(o.openCells, trigger)]
       : []),
-    ...(o.showZones ? [siteZonesLayer(o.sites, o.conflictIds)] : []),
-    sitePinsLayer(o.sites, {
-      selectedVertical: o.selectedVertical,
-      filterToVertical: o.filterToVertical,
-    }),
+    ...(o.showZones ? [siteZonesLayer(visibleSites, o.conflictIds)] : []),
+    sitePinsLayer(o.sites, { selectedVerticals: o.selectedVerticals }),
     ...(o.showMetros && shouldShowMetros(o.zoom) ? [metrosLayer(metros)] : []),
     ...(o.showCapitals ? [capitalsLayer(capitals)] : []),
   ];
