@@ -82,9 +82,9 @@ describe('MapDrawer.tsx source contract', () => {
 
   it('labels the internal Hide button (A11Y-004)', () => {
     // The collapse button carries an explicit accessible name matching the
-    // handle's close label (the literal attr is on the Hide button; the handle
-    // uses a dynamic expression).
-    expect(src).toContain('aria-label="Close map menu"');
+    // Hide button's accessible name must contain its visible text "Hide"
+    // (WCAG 2.5.3 Label in Name) while keeping the "map menu" context.
+    expect(src).toContain('aria-label="Hide map menu"');
   });
 
   it('manages focus across Hide/handle (A11Y-003 / A11Y-006)', () => {

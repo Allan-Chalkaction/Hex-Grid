@@ -327,7 +327,7 @@ export function MapDrawer({
             <button
               type="button"
               className="btn-secondary map-drawer__collapse"
-              aria-label="Close map menu"
+              aria-label="Hide map menu"
               onClick={handleHide}
             >
               Hide
