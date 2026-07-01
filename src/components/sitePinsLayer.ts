@@ -1,4 +1,4 @@
-import { ScatterplotLayer } from 'deck.gl';
+import { ScatterplotLayer, type PickingInfo } from 'deck.gl';
 import type { SiteGeo } from '../lib/customers';
 import { VERTICAL_COLORS, VERTICAL_NEUTRAL, type RGB } from '../lib/verticalStyle';
 
@@ -28,11 +28,19 @@ import { VERTICAL_COLORS, VERTICAL_NEUTRAL, type RGB } from '../lib/verticalStyl
  */
 export interface SitePinsOptions {
   selectedVerticals: string[];
+  /**
+   * Optional deck.gl hover callback (CG hover card). When supplied it is wired
+   * to the pickable ScatterplotLayer; deck fires it with the picking `info`
+   * ({ object, x, y, picked }) on pointer move over / off a pin. MapShell lifts
+   * the hovered site + pointer coords into React state to render the visual,
+   * `pointer-events:none` card. Omitted (the default) → no hover behavior.
+   */
+  onHover?: (info: PickingInfo) => void;
 }
 
 export function sitePinsLayer(
   sites: SiteGeo[],
-  { selectedVerticals }: SitePinsOptions = { selectedVerticals: [] },
+  { selectedVerticals, onHover }: SitePinsOptions = { selectedVerticals: [] },
 ): ScatterplotLayer<LocatedSite> {
   const located: LocatedSite[] = sites.filter(
     (s): s is LocatedSite => s.lat != null && s.lng != null,
@@ -58,7 +66,13 @@ export function sitePinsLayer(
     getLineColor: [255, 255, 255],
     lineWidthUnits: 'pixels',
     getLineWidth: 1,
+    // `pickable` makes the pins hoverable; `onHover` (when supplied) lifts the
+    // hovered site + pointer coords for the info card. A canvas hover is a
+    // mouse-only convenience — the accessible data path is the Sites table /
+    // customer list (same posture as the ZCTA click popup); the card itself is
+    // aria-hidden + pointer-events:none so it never affects keyboard/SR users.
     pickable: true,
+    onHover,
     // A CONSTANT trigger key — the palette is static, so the recolor only needs
     // to re-run when the layer is rebuilt (data/selection change), never per
     // frame. Mirrors the siteZonesLayer `conflictKey` idiom with a fixed value.

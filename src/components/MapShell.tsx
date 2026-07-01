@@ -1,13 +1,21 @@
-import { useEffect, useRef } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import maplibregl from 'maplibre-gl';
 import { MapboxOverlay } from '@deck.gl/mapbox';
+import type { PickingInfo } from 'deck.gl';
 import 'maplibre-gl/dist/maplibre-gl.css';
 import { sitePinsLayer } from './sitePinsLayer';
 import { siteZonesLayer } from './siteZonesLayer';
 import { addZctaSource, setZctaVisible } from './zctaSource';
 import { buildDeckLayers } from './deckLayers';
-import type { SiteGeo } from '../lib/customers';
+import { restrictedAreaLabel, type SiteGeo } from '../lib/customers';
 import type { CoverageCell, LatLng, ViewportBounds } from '../lib/coverage';
+
+/** The hovered pin lifted out of deck.gl picking: the site + pointer coords. */
+interface PinHover {
+  object: SiteGeo;
+  x: number;
+  y: number;
+}
 
 /**
  * The map shell (W1 reactive seam + W4 saturation mount + ZCTA overlay).
@@ -65,6 +73,22 @@ export function MapShell({
   const containerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<maplibregl.Map | null>(null);
   const overlayRef = useRef<MapboxOverlay | null>(null);
+
+  // The hovered site pin → the info card (CG hover card). Null = nothing hovered
+  // (no card). Lifted from deck.gl picking; cleared when picking misses.
+  const [pinHover, setPinHover] = useState<PinHover | null>(null);
+
+  // Stable hover handler (deck fires it with the picking info on pointer move).
+  // Stable identity (no deps) means including it in the reactive-layer effect's
+  // deps below never adds an extra layer rebuild — the layers refresh only on
+  // data/flag change, as before. Set the card on a real pick; clear otherwise.
+  const handlePinHover = useCallback((info: PickingInfo): void => {
+    if (info.picked && info.object) {
+      setPinHover({ object: info.object as SiteGeo, x: info.x, y: info.y });
+    } else {
+      setPinHover(null);
+    }
+  }, []);
 
   // Keep the latest onViewportChange in a ref so the single `moveend` binding
   // (established once below) always calls the current callback WITHOUT rebinding
@@ -159,6 +183,7 @@ export function MapShell({
         showZones,
         dataVersion,
         resolution,
+        onSitePinHover: handlePinHover,
       }),
     });
   }, [
@@ -172,6 +197,7 @@ export function MapShell({
     showZones,
     dataVersion,
     resolution,
+    handlePinHover,
   ]);
 
   // RO-T5: flip the ZCTA native-layer visibility on toggle (MapLibre-native, not
@@ -193,14 +219,40 @@ export function MapShell({
   }, [flyToTarget]);
 
   return (
-    <div
-      ref={containerRef}
-      // The map canvas is a known a11y-difficult surface; a11y is scoped to the
-      // surrounding chrome. It is not a keyboard trap (focus passes through).
-      // role="application" makes the aria-label reliably exposed (A11Y-011).
-      role="application"
-      aria-label="Map of the United States"
-      style={{ position: 'absolute', inset: 0 }}
-    />
+    // A positioned wrapper so the absolutely-positioned hover card anchors to the
+    // map bounds (deck.gl picking x/y are pixels relative to this surface). The
+    // wrapper spans the same box the map container used to occupy.
+    <div style={{ position: 'absolute', inset: 0 }}>
+      <div
+        ref={containerRef}
+        // The map canvas is a known a11y-difficult surface; a11y is scoped to the
+        // surrounding chrome. It is not a keyboard trap (focus passes through).
+        // role="application" makes the aria-label reliably exposed (A11Y-011).
+        role="application"
+        aria-label="Map of the United States"
+        style={{ position: 'absolute', inset: 0 }}
+      />
+      {/*
+        The site hover card (CG hover card). A canvas-pin hover is inherently
+        mouse-only; the accessible data path already exists (the Sites table +
+        customer list expose name + radius), so this is a pure mouse convenience
+        — same posture as the ZCTA click popup. It is aria-hidden + has
+        pointer-events:none (CSS) so it never blocks deck picking and is invisible
+        to keyboard/SR users. Offset a few px off the pointer; rendered only while
+        something is hovered.
+      */}
+      {pinHover && (
+        <div
+          className="site-hover-card"
+          aria-hidden="true"
+          style={{ left: pinHover.x + 12, top: pinHover.y + 12 }}
+        >
+          <div className="site-hover-card__name">{pinHover.object.name}</div>
+          <div className="site-hover-card__radius">
+            {restrictedAreaLabel(pinHover.object)}
+          </div>
+        </div>
+      )}
+    </div>
   );
 }
