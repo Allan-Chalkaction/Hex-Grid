@@ -32,6 +32,7 @@ function site(partial: Partial<SiteGeo> = {}): SiteGeo {
     exclusivity_radius_mi: 1,
     is_zone_on: true,
     vertical: 'gas',
+    customer_name: 'Acme',
     ...partial,
   };
 }

@@ -764,9 +764,22 @@ button.btn-danger {
   line-height: 1.3;
 }
 
-.site-hover-card__name {
+/* Brand (customer) name — the bold header line of the card. */
+.site-hover-card__brand {
   font-weight: 600;
   color: #1a1a1a;
+}
+
+/* Site name — the secondary line under the brand. */
+.site-hover-card__name {
+  margin-top: 0.0625rem;
+  color: #1a1a1a;
+}
+
+/* Address — muted, omitted entirely when the site has no address. */
+.site-hover-card__address {
+  margin-top: 0.125rem;
+  color: #555;
 }
 
 .site-hover-card__radius {
