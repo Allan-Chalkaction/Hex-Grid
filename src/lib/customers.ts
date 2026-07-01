@@ -34,6 +34,10 @@ export interface SiteGeo {
   exclusivity_radius_mi: number | null;
   is_zone_on: boolean;
   vertical: string | null;
+  // Appended to the 0005 site_geo view — the owning customer's brand name, joined
+  // from `customer.name` (like `vertical`, the brand-side fields live on the
+  // joined customer, not the site). Powers the map hover card's brand line.
+  customer_name: string;
 }
 
 /** One site to create under a customer. `name` defaults to `address` if absent. */

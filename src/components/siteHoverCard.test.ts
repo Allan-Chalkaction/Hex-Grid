@@ -39,6 +39,16 @@ describe('site hover card — MapShell renders the card', () => {
     expect(shell).toContain('restrictedAreaLabel');
   });
 
+  it('renders the customer (brand) name + address alongside name + radius', () => {
+    // The brand line reads customer_name off the hovered site_geo row.
+    expect(shell).toContain('customer_name');
+    expect(shell).toContain('site-hover-card__brand');
+    // The address line reads the (nullable) address field and is conditionally
+    // rendered so a null address never prints "null".
+    expect(shell).toContain('site-hover-card__address');
+    expect(shell).toMatch(/pinHover\.object\.address\s*&&/);
+  });
+
   it('lifts hover state from deck picking via a handler', () => {
     expect(shell).toMatch(/handlePinHover/);
     expect(shell).toMatch(/info\.picked/);

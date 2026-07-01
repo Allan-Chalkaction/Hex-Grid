@@ -247,7 +247,15 @@ export function MapShell({
           aria-hidden="true"
           style={{ left: pinHover.x + 12, top: pinHover.y + 12 }}
         >
+          <div className="site-hover-card__brand">
+            {pinHover.object.customer_name}
+          </div>
           <div className="site-hover-card__name">{pinHover.object.name}</div>
+          {pinHover.object.address && (
+            <div className="site-hover-card__address">
+              {pinHover.object.address}
+            </div>
+          )}
           <div className="site-hover-card__radius">
             {restrictedAreaLabel(pinHover.object)}
           </div>

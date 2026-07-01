@@ -27,6 +27,7 @@ function site(
     exclusivity_radius_mi: null,
     is_zone_on: false,
     vertical,
+    customer_name: `Brand ${id}`,
   };
 }
 

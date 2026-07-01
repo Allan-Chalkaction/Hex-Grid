@@ -21,6 +21,7 @@ const site = (id: string, vertical: string | null): SiteGeo => ({
   exclusivity_radius_mi: 5,
   is_zone_on: true,
   vertical,
+  customer_name: `Brand ${id}`,
 });
 
 const sites: SiteGeo[] = [site('a', 'gas'), site('b', 'grocery')];
