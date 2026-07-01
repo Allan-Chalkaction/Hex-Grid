@@ -1,8 +1,9 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useId, useMemo, useRef, useState } from 'react';
 import { cellToLatLng } from 'h3-js';
 import { AuthGate } from './components/AuthGate';
 import { MapShell } from './components/MapShell';
 import { MapDrawer } from './components/MapDrawer';
+import { SitesView } from './components/SitesView';
 import { zctaConfigured } from './components/zctaSource';
 import { supabase } from './lib/supabaseClient';
 import type { SiteGeo } from './lib/customers';
@@ -65,6 +66,12 @@ const EMPTY_SATURATION: SaturationResult = {
 };
 
 export function App() {
+  // Top-level view toggle: 'map' = MapShell + MapDrawer (the default); 'sites' =
+  // the full-width SitesView data table (drawer + map hidden). The signed-in
+  // header (with the toggle + sign-out) stays in both views.
+  const [view, setView] = useState<'map' | 'sites'>('map');
+  const viewToggleLabelId = useId();
+
   const [sites, setSites] = useState<SiteGeo[]>([]);
   const [version, setVersion] = useState(0);
   const [conflictsBySite, setConflictsBySite] = useState<
@@ -248,53 +255,92 @@ export function App() {
     };
   }, []);
 
+  // The Map ⇄ Sites toggle, rendered into the AuthGate header slot. Native
+  // segmented buttons with aria-pressed + a useId-labelled group (no ARIA
+  // widget reinvention; keyboard-operable via the native buttons).
+  const viewToggle = (
+    <div
+      className="view-toggle"
+      role="group"
+      aria-labelledby={viewToggleLabelId}
+    >
+      <span id={viewToggleLabelId} className="view-toggle__label">
+        View
+      </span>
+      <button
+        type="button"
+        className="view-toggle__btn"
+        aria-pressed={view === 'map'}
+        onClick={() => setView('map')}
+      >
+        Map
+      </button>
+      <button
+        type="button"
+        className="view-toggle__btn"
+        aria-pressed={view === 'sites'}
+        onClick={() => setView('sites')}
+      >
+        Sites
+      </button>
+    </div>
+  );
+
   return (
-    <AuthGate>
+    <AuthGate headerSlot={viewToggle}>
       <div className="app-shell">
-        <MapShell
-          sites={sites}
-          conflictIds={conflictIds}
-          cells={saturation.cells}
-          openCells={saturation.openCells}
-          selectedVerticals={selectedVerticals}
-          showHeatmap={showHeatmap}
-          showProspecting={showProspecting}
-          showZones={showZones}
-          showZcta={showZcta}
-          dataVersion={version}
-          resolution={saturation.resolution}
-          onViewportChange={handleViewportChange}
-          flyToTarget={flyToTarget}
-        />
-        {/* The ONE consolidated left drawer: vertical chooser (the gate) → layer
-            toggles + saturation legend/summary → customer CRUD. Auto-retracts
-            after 15 s idle and reopens on left-edge hover + a focusable handle.
-            Replaces the old left .site-panel CRUD + the top-right
-            .saturation-panel as separate floating surfaces. */}
-        <MapDrawer
-          selectedVerticals={selectedVerticals}
-          activeVertical={activeVertical}
-          showHeatmap={showHeatmap}
-          showProspecting={showProspecting}
-          showZones={showZones}
-          showZcta={showZcta}
-          zctaConfigured={zctaIsConfigured}
-          coveredCount={saturation.coveredCount}
-          openCount={saturation.openCount}
-          capped={saturation.capped}
-          computing={computing}
-          announcement={announcement}
-          onToggleVertical={handleToggleVertical}
-          onToggleHeatmap={setShowHeatmap}
-          onToggleProspecting={setShowProspecting}
-          onToggleZones={setShowZones}
-          onToggleZcta={setShowZcta}
-          onJumpToOpen={handleJumpToOpen}
-          onChanged={() => void reload()}
-          reloadVersion={version}
-          conflictsBySite={conflictsBySite}
-          conflictsLoading={conflictsLoading}
-        />
+        {view === 'map' ? (
+          <>
+            <MapShell
+              sites={sites}
+              conflictIds={conflictIds}
+              cells={saturation.cells}
+              openCells={saturation.openCells}
+              selectedVerticals={selectedVerticals}
+              showHeatmap={showHeatmap}
+              showProspecting={showProspecting}
+              showZones={showZones}
+              showZcta={showZcta}
+              dataVersion={version}
+              resolution={saturation.resolution}
+              onViewportChange={handleViewportChange}
+              flyToTarget={flyToTarget}
+            />
+            {/* The ONE consolidated left drawer: vertical chooser (the gate) →
+                layer toggles + saturation legend/summary → customer CRUD.
+                Auto-retracts after 15 s idle and reopens on left-edge hover + a
+                focusable handle. Replaces the old left .site-panel CRUD + the
+                top-right .saturation-panel as separate floating surfaces. */}
+            <MapDrawer
+              selectedVerticals={selectedVerticals}
+              activeVertical={activeVertical}
+              showHeatmap={showHeatmap}
+              showProspecting={showProspecting}
+              showZones={showZones}
+              showZcta={showZcta}
+              zctaConfigured={zctaIsConfigured}
+              coveredCount={saturation.coveredCount}
+              openCount={saturation.openCount}
+              capped={saturation.capped}
+              computing={computing}
+              announcement={announcement}
+              onToggleVertical={handleToggleVertical}
+              onToggleHeatmap={setShowHeatmap}
+              onToggleProspecting={setShowProspecting}
+              onToggleZones={setShowZones}
+              onToggleZcta={setShowZcta}
+              onJumpToOpen={handleJumpToOpen}
+              onChanged={() => void reload()}
+              reloadVersion={version}
+              conflictsBySite={conflictsBySite}
+              conflictsLoading={conflictsLoading}
+            />
+          </>
+        ) : (
+          // Sites view: the full-width editable table. It bumps the SAME shared
+          // reload version on save, so the map reflects every fix on switch-back.
+          <SitesView onChanged={() => void reload()} reloadVersion={version} />
+        )}
       </div>
     </AuthGate>
   );
